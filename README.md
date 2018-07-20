@@ -1,8 +1,8 @@
-Synopsis:
+## Synopsis:
 
-The pipeline takes fasta files and their annotations as inputs, compares each fasta file to one another and extracts aligned regions that are at least 99% and 2000bp long. 
+The pipeline compare multiple fasta files using nucmer and extracts aligned fragments that meet user-defined parameters.
 
-Since this pipeline is made to compare patients from same as well as different facilities, it requires the fasta file names to be in certain naming specifications.
+<!-- Since this pipeline is made to compare patients from same as well as different facilities, it requires the fasta file names to be in certain naming specifications.
 
 example: 1388-G009-14-G-P-mirabilis-Aim2-CIP_R_final_ordered 
 
@@ -15,83 +15,83 @@ The filename needs to be divided into 8 parts, out of which only second (patient
 - same_patient_different_species_same_facility
 - same_patient_same_species_same_facility
 
-## Preparing input
+-->
 
-1. Making a pseudomolecule of each fasta files
+### Requirement:
 
-Run abacas on each fasta file against each respective reference genome (species: ex: order all mirabilis fasta files against a single mirabilis reference genome) to order it against a reference genome. 
-(If you decide not to order you can also join all contigs into one pseudomolecule)
+- assembly pseudomolecule in fasta format.
+- annotation files in gff and bed format. Requires both.
 
-NH: these inputs are already generated and placed here: /nfs/esnitkin/Project_Nursing_Home/Analysis/Regional_MDRO_populations/2017_10_28_HGT_Mummer_analysis/fasta_files
+### Preparing input
 
+-  Making a pseudomolecule for input fasta files
 
-
-2. Annotations:
-
-The pipeline requires prokka annotation. Annotate pseudomolecules using prokka and place the results in one folder. 
-
-NH: these annotations are placed in /nfs/esnitkin/Project_Nursing_Home/Analysis/Regional_MDRO_populations/2017_10_28_HGT_Mummer_analysis/2017_10_28_HGT_Mummer_analysis_annotations
-
-## Run pipeline:
-
-step 1: Run nucmer to compare each sample against each and generate coordinates file.
-
-- generate a file containing fasta filenames, one line per line.
-
-cd /nfs/esnitkin/Project_Nursing_Home/Analysis/Regional_MDRO_populations/2017_10_28_HGT_Mummer_analysis
-mkdir Results
-cd Results
-
-ls /scratch/esnitkin_fluxod/apirani/Project_Nursing_Home/Analysis/2017_10_28_HGT_Mummer_analysis/fasta_files/*.fasta | awk -F'/' '{print $(NF)}' > filenames
+Stich all contigs in de novo assembly to generate a psudomolecule using a linker sequence or order contigs against a reference genome using abacas.
 
 
-Put the below command inside a pbs script and run it. Try giving it morfe than 8 cores so that it will run nucmer commands in parallel.
-```
-cd /nfs/esnitkin/Project_Nursing_Home/Analysis/Regional_MDRO_populations/2017_10_28_HGT_Mummer_analysis/Results
-~/anaconda/bin/python /nfs/esnitkin/bin_group/scripts/Scripts_v2.0/recombination_analysis/recombination_analysis.py -filename filenames -out /nfs/esnitkin/Project_Nursing_Home/Analysis/Regional_MDRO_populations/2017_10_28_HGT_Mummer_analysis/Results/Results_parse_3 -dir /nfs/esnitkin/Project_Nursing_Home/Analysis/Regional_MDRO_populations/2017_10_28_HGT_Mummer_analysis/fasta_files/ -steps 1 -prokka_dir /nfs/esnitkin/Project_Nursing_Home/Analysis/Regional_MDRO_populations/2017_10_28_HGT_Mummer_analysis/2017_10_28_HGT_Mummer_analysis_annotations/ -jobrun parallel-local
-```
 
-step 2: parse \*.coords file to generate condition directories and extract aligned fasta sequences for each species pairs
+### Example:
 
-```
-cd /nfs/esnitkin/Project_Nursing_Home/Analysis/Regional_MDRO_populations/2017_10_28_HGT_Mummer_analysis/Results
-~/anaconda/bin/python /nfs/esnitkin/bin_group/scripts/Scripts_v2.0/recombination_analysis/recombination_analysis.py -filename filenames -out /nfs/esnitkin/Project_Nursing_Home/Analysis/Regional_MDRO_populations/2017_10_28_HGT_Mummer_analysis/Results/Results_parse_3 -dir /nfs/esnitkin/Project_Nursing_Home/Analysis/Regional_MDRO_populations/2017_10_28_HGT_Mummer_analysis/fasta_files/ -steps 2 -prokka_dir /nfs/esnitkin/Project_Nursing_Home/Analysis/Regional_MDRO_populations/2017_10_28_HGT_Mummer_analysis/2017_10_28_HGT_Mummer_analysis_annotations/ -jobrun parallel-local
-```
-
-step 3: remove redundant species-pairs folders from each condition directories. we will use same_patient_different_species_same_facility as an example for condition directory 
-
-```
-cd /nfs/esnitkin/Project_Nursing_Home/Analysis/Regional_MDRO_populations/2017_10_28_HGT_Mummer_analysis/Results
-~/anaconda/bin/python /nfs/esnitkin/bin_group/scripts/Scripts_v2.0/recombination_analysis/recombination_analysis.py -filename filenames -out /nfs/esnitkin/Project_Nursing_Home/Analysis/Regional_MDRO_populations/2017_10_28_HGT_Mummer_analysis/Results/Results_parse_3/same_patient_different_species_same_facility/ -dir /nfs/esnitkin/Project_Nursing_Home/Analysis/Regional_MDRO_populations/2017_10_28_HGT_Mummer_analysis/fasta_files/ -steps 3 -prokka_dir /nfs/esnitkin/Project_Nursing_Home/Analysis/Regional_MDRO_populations/2017_10_28_HGT_Mummer_analysis/2017_10_28_HGT_Mummer_analysis_annotations/ -jobrun parallel-local
-```
-
-No go to same_patient_different_species_same_facility and make a new directory
-
-```
-mkdir ariba_database
-cat */*.aligned.fasta > same_patient_different_species_same_facility.fasta
-cat */*.fasta_meta.tsv > same_patient_different_species_same_facility.fasta.tsv
-
-Run dedupe from BBtools to remove duplicate sequences and exact sequences.
-pending
-
+Stich contigs using a linker sequence "NNNNNCATTCCATTCATTAATTAATTAATGAATGAATGNNNNN" or use psudomolecule generated by abacas contig ordering.
 
 ```
 
-step 4: compare each aligned fragments to each fasta file and generate a score.
-
-
+Pending contig stiching bash script
 
 ```
-cd /nfs/esnitkin/Project_Nursing_Home/Analysis/Regional_MDRO_populations/2017_10_28_HGT_Mummer_analysis/
-mkdir generate_matrix
 
-cd generate_matrix
+
+- Annotations:
+
+Annotate pseudomolecules using prokka or any other tool. The script expects an individual annotation folder for each sample consisting gff and bed files.
+
+### Usage
+
+```
+usage: recombination_analysis.py [-h] -filename FILENAME -out OUT -prokka_dir
+                                 PROKKA_DIR [-jobrun JOBRUN] -dir DIR
+                                 -analysis ANALYSIS_NAME
+                                 [-remove_temp REMOVE_TEMP] -steps STEPS
+
+Recombination/HGT Analysis.
+The pipeline takes a list of fasta files and aligns All-vs-All using Nucmer.
+Extracts aligned region by parsing nucmer coordinate and gff/bed annotations to extract regions that matches user defined percent identity and minimum aligned length parameters.
+Generates a preliminary reference database out of extracted aligned regions by deduplicating and removing containments.
+Removes containment fragments from preliminary database using nucmer.
+Performs nucmer alignment between pseudomolecule fasta file and final containment removed aligned fragments to generate an alignment matrix score.
+
+optional arguments:
+  -h, --help            show this help message and exit
+
+Required arguments:
+  -filename FILENAME    This file should contain a list of fasta filenames(one per line) that the user wants to use from argument -dir folder. For Genome coordinate consistency, make sure the fasta files are in a pseudomolecule format
+  -out OUT              Output directory to save the results
+  -prokka_dir PROKKA_DIR
+                        Directory containing results of Prokka annotation pipeline or individual sample folders consisting gff and bed file. The folder name should match the fasta file prefix.
+  -jobrun JOBRUN        Type of job to run. Run script on a compute cluster, parallelly on local or on local system(default): cluster, parallel-local, local
+  -dir DIR              Directory containing fasta files specified in -filename list
+  -analysis ANALYSIS_NAME
+                        Unique Analysis Name to save results with this prefix
+
+Optional arguments:
+  -remove_temp REMOVE_TEMP
+                        Remove Temporary directories from /tmp/ folder: yes/no
+  -steps STEPS          Analysis Steps to be performed. Default: All or 1,2,3,4,5
+                        1: Align all assembly fasta input file against each other using Nucmer.
+                        2: Parses the Nucmer generated aligned coordinates files, extract individual aligned fragments and their respective annotation for metadata.
+                        3: Generate a database of these extracted aligned regions by deduplicating and removing containments using BBmaps dedupe tool.
+                        4: Remove containments from preliminary database by running nucmer
+                        5: Performs nucmer alignment between input fasta file and final containment removed extracted fragments to generate an alignment score matrix.
 ```
 
-Put the below command in a seperate job:
+### Example:
 
 ```
-cd /nfs/esnitkin/Project_Nursing_Home/Analysis/Regional_MDRO_populations/2017_10_28_HGT_Mummer_analysis/generate_matrix
-~/anaconda/bin/python /nfs/esnitkin/bin_group/scripts/Scripts_v2.0/recombination_analysis/recombination_analysis.py -filename filenames -out /nfs/esnitkin/Project_Nursing_Home/Analysis/Regional_MDRO_populations/2017_10_28_HGT_Mummer_analysis/generate_matrix/same_patient_different_species_same_facility/ -dir /scratch/esnitkin_fluxod/apirani/Project_Nursing_Home/Analysis/2017_10_28_HGT_Mummer_analysis/fasta_files/ -steps 4 -prokka_dir /scratch/esnitkin_fluxod/apirani/Project_Nursing_Home/Analysis/2017_10_28_HGT_Mummer_analysis/2017_10_28_HGT_Mummer_analysis_annotations/ -jobrun parallel-local -filename_db nucmer_db_filenames -dir_db /nfs/esnitkin/Project_Nursing_Home/Analysis/Regional_MDRO_populations/2017_10_28_HGT_Mummer_analysis/Results/Results_parse_3/same_patient_different_species_same_facility/ariba_database/dedup_cluster/extracted_fasta/fasta_headers/
+python recombination_analysis.py -filename filenames -out /path-to-out-dir/ -prokka_dir /path-to/fasta_file_annotations/ -jobrun parallel-local -dir /path-to-pseudomolecule/fasta_files/ -analysis 2018_07_18_analysis_name -step All
+
+or
+
+python recombination_analysis.py -filename filenames -out /path-to-out-dir/ -prokka_dir /path-to/fasta_file_annotations/ -jobrun parallel-local -dir //path-to-pseudomolecule/fasta_files/ -analysis 2018_07_18_analysis_name -step 1,2,3,4,5
+
 ```
+

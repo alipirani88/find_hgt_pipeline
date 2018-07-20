@@ -18,26 +18,27 @@ import re
 from Bio import SeqIO
 from argparse import RawTextHelpFormatter
 
-parser = argparse.ArgumentParser(description='Pipeline: Recombination/HGT Analysis.\n The pipeline takes a list of fasta files and aligns All-vs-All using Nucmer.\n Parses Nucmer coordinates results and input gff/bed annotation files to extract regions that matches user provided percent identity and aligned region(bp) parameters.\n Makes a reference database of these extracted aligned regions by deduplicating and removing containments.\n Performs nucmer alignment between input fasta file and extracted regions to generate a matrix of aligned bases ratio.\n', formatter_class=RawTextHelpFormatter)
+parser = argparse.ArgumentParser(description='Recombination/HGT Analysis.\nThe pipeline takes a list of fasta files and aligns All-vs-All using Nucmer.\nExtracts aligned region by parsing nucmer coordinate and gff/bed annotations to extract regions that matches user defined percent identity and minimum aligned length parameters.\nGenerates a preliminary reference database out of extracted aligned regions by deduplicating and removing containments.\nRemoves containment fragments from preliminary database using nucmer.\nPerforms nucmer alignment between pseudomolecule fasta file and final containment removed aligned fragments to generate an alignment matrix score.\n', formatter_class=RawTextHelpFormatter)
 required = parser.add_argument_group('Required arguments')
-required.add_argument('-filename', action='store', dest="filename", help='This file contains a list of fasta filenames. For Genome coordinate consistency, make sure the fasta files are in a pseudomolecule assembly format i.e contigs stiched together into one assembly.', required=True)
+required.add_argument('-filename', action='store', dest="filename", help='This file should contain a list of fasta filenames(one per line) that the user wants to use from argument -dir folder. For Genome coordinate consistency, make sure the fasta files are in a pseudomolecule format', required=True)
 required.add_argument('-out', action='store', dest="out", help='Output directory to save the results', required=True)
-required.add_argument('-prokka_dir', action='store', dest="prokka_dir", help='Directory containing results of Prokka annotation pipeline.', required=True)
+required.add_argument('-prokka_dir', action='store', dest="prokka_dir", help='Directory containing results of Prokka annotation pipeline or individual sample folders consisting gff and bed file. The folder name should match the fasta file prefix.', required=True)
 required.add_argument('-jobrun', action='store', dest="jobrun",
-                    help='Type of job to run. Running on Cluster or Parallelly at local system or locally (default): cluster, parallel-local, local')
+                    help='Type of job to run. Run script on a compute cluster, parallelly on local or on local system(default): cluster, parallel-local, local')
 required.add_argument('-dir', action='store', dest="dir", help='Directory containing fasta files specified in -filename list', required=True)
 required.add_argument('-analysis', action='store', dest="analysis_name", help='Unique Analysis Name to save results with this prefix', required=True)
 optional = parser.add_argument_group('Optional arguments')
-optional.add_argument('-filename_db', action='store', dest="filename_db", help='filenames of nucmer db', required=False)
-optional.add_argument('-dir_db', action='store', dest="dir_db", help='directory of nucmer db fasta files', required=False)
-optional.add_argument('-matrix', action='store', dest="matrix", help='Matrix to parse and remove containments', required=False)
+#optional.add_argument('-filename_db', action='store', dest="filename_db", help='filenames of nucmer db', required=False)
+#optional.add_argument('-dir_db', action='store', dest="dir_db", help='directory of nucmer db fasta files', required=False)
+#optional.add_argument('-matrix', action='store', dest="matrix", help='Matrix to parse and remove containments', required=False)
 optional.add_argument('-remove_temp', action='store', dest="remove_temp", help='Remove Temporary directories from /tmp/ folder: yes/no', required=False)
 optional.add_argument('-steps', action='store', dest="steps",
-                    help='Analysis Steps to be performed. Default: All i.e: 1,2,3,4,5'
+                    help='Analysis Steps to be performed. Default: All or 1,2,3,4,5'
                          '\n1: Align all assembly fasta input file against each other using Nucmer.'
                          '\n2: Parses the Nucmer generated aligned coordinates files, extract individual aligned fragments and their respective annotation for metadata.'
-                         '\n3: Generate a database of these extracted aligned regions by deduplicating and removing containments using BBmaps dedupe tool'
-                         '\n4: Performs nucmer alignment between input fasta file and extracted regions to generate a matrix of aligned bases ratio.')
+                         '\n3: Generate a database of these extracted aligned regions by deduplicating and removing containments using BBmaps dedupe tool.'
+                         '\n4: Remove containments from preliminary database by running nucmer'
+                         '\n5: Performs nucmer alignment between input fasta file and final containment removed extracted fragments to generate an alignment score matrix.', required=True)
 
 args = parser.parse_args()
 
@@ -535,7 +536,7 @@ if __name__ == '__main__':
 
     keep_logging('The Script started at: %s\n' % start_time, 'The Script started at: %s\n' % start_time, logger, 'info')
 
-    keep_logging('\nThis pipeline will run the following steps:\n\n1: Align all fasta input file against each other using Nucmer.\n2: Parses the Nucmer generated coordinates files and generate annotated results of aligned fragments.\n3: Generate a database of these extracted aligned regions by deduplicating and removing containments.\n4: Performs nucmer alignment between input fasta file and extracted regions to generate a matrix of alignment score.\n', '\nThis pipeline will run the following steps:\n\n1: Align all fasta input file against each other using Nucmer.\n2: Parses the Nucmer generated coordinates files and generate annotated results of aligned fragments.\n3: Generate a database of these extracted aligned regions by deduplicating and removing containments.\n4: Performs nucmer alignment between input fasta file and extracted regions to generate a matrix of alignment score.\n', logger, 'info')
+    keep_logging('\nThis pipeline will run the following steps:\n\n1: Align all fasta input file against each other using Nucmer.\n2: Parses the Nucmer generated aligned coordinates files, extract individual aligned fragments and their respective annotation for metadata.\n3: Generate a database of these extracted aligned regions by deduplicating and removing containments.\n4: Performs nucmer alignment between input fasta file and extracted regions to generate a matrix of alignment score.\n', '\nThis pipeline will run the following steps:\n\n1: Align all fasta input file against each other using Nucmer.\n2: Parses the Nucmer generated coordinates files and generate annotated results of aligned fragments.\n3: Generate a preliminary database of these extracted aligned regions by deduplicating and removing containments using BBmaps dedupe tool.\n4: Remove containments from preliminary database by running nucmer\n5: Performs nucmer alignment between input fasta file and final containment removed extracted fragments to generate an alignment score matrix.\n', logger, 'info')
 
     # GENERATE INPUT ASSEMBLY FASTA FILENAMES ARRAY
     filenames_array = []
@@ -556,7 +557,11 @@ if __name__ == '__main__':
     # CHECK FOR STEPS ARGUMENTS WITH COMMAND-LINE ARGUMENT STEPS; Run individual pipeline steps
     if args.steps:
         # split values provided with -steps argument and decide the starting point of pipeline
-        steps_list = args.steps.split(',')
+        if args.steps == "All":
+            steps_string = "1,2,3,4,5"
+            steps_list = steps_string.split(',')
+        else:
+            steps_list = args.steps.split(',')
 
         if "1" in steps_list:
             # Run nucmer on all the input fasta pseudomolecule assembly fasta file. compare All-vs-All.

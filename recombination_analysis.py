@@ -14,8 +14,9 @@ from collections import defaultdict
 from collections import OrderedDict
 from logging_subprocess import *
 from log_modules import *
+import re
+from Bio import SeqIO
 from argparse import RawTextHelpFormatter
-
 
 parser = argparse.ArgumentParser(description='Pipeline: Recombination/HGT Analysis.\n The pipeline takes a list of fasta files and aligns All-vs-All using Nucmer.\n Parses Nucmer coordinates results and input gff/bed annotation files to extract regions that matches user provided percent identity and aligned region(bp) parameters.\n Makes a reference database of these extracted aligned regions by deduplicating and removing containments.\n Performs nucmer alignment between input fasta file and extracted regions to generate a matrix of aligned bases ratio.\n', formatter_class=RawTextHelpFormatter)
 required = parser.add_argument_group('Required arguments')
@@ -30,15 +31,17 @@ optional = parser.add_argument_group('Optional arguments')
 optional.add_argument('-filename_db', action='store', dest="filename_db", help='filenames of nucmer db', required=False)
 optional.add_argument('-dir_db', action='store', dest="dir_db", help='directory of nucmer db fasta files', required=False)
 optional.add_argument('-matrix', action='store', dest="matrix", help='Matrix to parse and remove containments', required=False)
+optional.add_argument('-remove_temp', action='store', dest="remove_temp", help='Remove Temporary directories from /tmp/ folder: yes/no', required=False)
 optional.add_argument('-steps', action='store', dest="steps",
-                    help='Analysis Steps to be performed. Default: All'
-                         '\n1: Align all fasta input file against each other using Nucmer.'
-                         '\n2: Parses the Nucmer generated coordinates files and generate annotated results of aligned fragments.'
-                         '\n3: Generate a database of these extracted aligned regions by deduplicating and removing containments.'
+                    help='Analysis Steps to be performed. Default: All i.e: 1,2,3,4,5'
+                         '\n1: Align all assembly fasta input file against each other using Nucmer.'
+                         '\n2: Parses the Nucmer generated aligned coordinates files, extract individual aligned fragments and their respective annotation for metadata.'
+                         '\n3: Generate a database of these extracted aligned regions by deduplicating and removing containments using BBmaps dedupe tool'
                          '\n4: Performs nucmer alignment between input fasta file and extracted regions to generate a matrix of aligned bases ratio.')
+
 args = parser.parse_args()
 
-
+# Pipeline Methods
 def create_job(jobrun, commands_list):
 
     """
@@ -69,8 +72,8 @@ def create_job(jobrun, commands_list):
         pbs_scripts = glob.glob(pbs_dir)
         for i in pbs_scripts:
             print "Running: qsub %s" % i
-            os.system("bash %s" % i)
-            #os.system("qsub %s" % i)
+            #os.system("bash %s" % i)
+            os.system("qsub %s" % i)
 
     elif jobrun == "parallel-local":
         """
@@ -117,8 +120,8 @@ def create_job_parse(jobrun, commands_list):
         pbs_scripts = glob.glob(pbs_dir)
         for i in pbs_scripts:
             print "Running: qsub %s" % i
-            os.system("bash %s" % i)
-            #os.system("qsub %s" % i)
+            #os.system("bash %s" % i)
+            os.system("qsub %s" % i)
 
     elif jobrun == "parallel-local":
         """
@@ -165,7 +168,7 @@ def create_job_containments(jobrun, commands_list):
         pbs_scripts = glob.glob(pbs_dir)
         for i in pbs_scripts:
             print "Running: qsub %s" % i
-            #os.system("qsub %s" % i)
+            os.system("qsub %s" % i)
 
     elif jobrun == "parallel-local":
         """
@@ -213,7 +216,7 @@ def create_job_containments_final(jobrun, commands_list):
         pbs_scripts = glob.glob(pbs_dir)
         for i in pbs_scripts:
             print "Running: qsub %s" % i
-            #os.system("qsub %s" % i)
+            os.system("qsub %s" % i)
 
     elif jobrun == "parallel-local":
         """
@@ -521,23 +524,20 @@ def generate_parse_containments_final_jobs(jobrun, filenames_array, filenames_db
     print len(command_array)
     return command_array
 
-#Main Steps
+#Main Steps: Start of pipeline
 if __name__ == '__main__':
+
     """Start Timer"""
     start_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     start_time_2 = datetime.now().strftime('%Y-%m-%d')
 
     logger = generate_logger(args.out, args.analysis_name, start_time_2)
+
     keep_logging('The Script started at: %s\n' % start_time, 'The Script started at: %s\n' % start_time, logger, 'info')
 
+    keep_logging('\nThis pipeline will run the following steps:\n\n1: Align all fasta input file against each other using Nucmer.\n2: Parses the Nucmer generated coordinates files and generate annotated results of aligned fragments.\n3: Generate a database of these extracted aligned regions by deduplicating and removing containments.\n4: Performs nucmer alignment between input fasta file and extracted regions to generate a matrix of alignment score.\n', '\nThis pipeline will run the following steps:\n\n1: Align all fasta input file against each other using Nucmer.\n2: Parses the Nucmer generated coordinates files and generate annotated results of aligned fragments.\n3: Generate a database of these extracted aligned regions by deduplicating and removing containments.\n4: Performs nucmer alignment between input fasta file and extracted regions to generate a matrix of alignment score.\n', logger, 'info')
 
-    print "\nThis pipeline will run the following steps:\n\n" \
-          "1: Align all fasta input file against each other using Nucmer.\n" \
-          "2: Parses the Nucmer generated coordinates files and generate annotated results of aligned fragments.\n" \
-          "3: Generate a database of these extracted aligned regions by deduplicating and removing containments.\n" \
-          "4: Performs nucmer alignment between input fasta file and extracted regions to generate a matrix of alignment score.\n" \
-
-    # GENERATE FASTA FILENAMES ARRAY
+    # GENERATE INPUT ASSEMBLY FASTA FILENAMES ARRAY
     filenames_array = []
 
     # Copy fasta files to /tmp/ directory.
@@ -553,9 +553,7 @@ if __name__ == '__main__':
             line = temp_fasta_dir + "/" + line
             filenames_array.append(line)
 
-    # CHECK FOR STEPS ARGUMENTS
-
-    # Run pipeline steps
+    # CHECK FOR STEPS ARGUMENTS WITH COMMAND-LINE ARGUMENT STEPS; Run individual pipeline steps
     if args.steps:
         # split values provided with -steps argument and decide the starting point of pipeline
         steps_list = args.steps.split(',')
@@ -742,8 +740,8 @@ if __name__ == '__main__':
 
         if "5" in steps_list:
             keep_logging(
-                'Running Step 5: Remove containment sequences from the preliminary database fragments. Part two. Parse Nucmer coordinates file of deduped extracted aligned region vs each other file and find contained sequences.',
-                'Running Step 5: Remove containment sequences from the preliminary database fragments. Part two. Parse Nucmer coordinates file of deduped extracted aligned region vs each other file and find contained sequences.',
+                'Running Step 5: Remove containment sequences from the preliminary database fragments. Part two. Parse Nucmer coordinates file of deduped extracted aligned region vs each other file and find contained sequences.\n',
+                'Running Step 5: Remove containment sequences from the preliminary database fragments. Part two. Parse Nucmer coordinates file of deduped extracted aligned region vs each other file and find contained sequences.\n',
                 logger,
                 'info')
             temp_cmd = "%s/temp_commands_parse_containments.sh" % args.out
@@ -755,6 +753,12 @@ if __name__ == '__main__':
             # Set up deduped database directories
             database_directory = args.out + "/2018_Recombination_analysis_Results/All_vs_All/database/"
             dedup_database_dir = database_directory + "/deduped_extracted_aligned_region_database/"
+
+            keep_logging(
+                'Setting up dedupe database directories to store final deduplicated and containment removed fragments: %s\n' % dedup_database_dir,
+                'Setting up dedupe database directories to store final deduplicated and containment removed fragments: %s\n' % dedup_database_dir,
+                logger,
+                'info')
             os.chdir(dedup_database_dir)
 
 
@@ -791,14 +795,22 @@ if __name__ == '__main__':
             os.system("cat %s/header %s/containment_matrix_temp.csv > %s/containment_matrix.csv" % (
             dedup_database_dir, dedup_database_dir, dedup_database_dir))
 
+            keep_logging(
+                'Reading containment matrix to determine fragments contained in another larger fragment: %s/containment_matrix.csv\n' % dedup_database_dir,
+                'Reading containment matrix to determine fragments contained in another larger fragment: %s/containment_matrix.csv\n' % dedup_database_dir,
+                logger,
+                'info')
+
             c_reader = csv.reader(open('%s/containment_matrix.csv' % dedup_database_dir, 'r'), delimiter='\t')
             columns = list(zip(*c_reader))
             counts = 1
             end = len(filenames_containments_array) + 1
-            print end
+            #print end
             hit_dict = defaultdict(list)
             v = []
+
             for i in xrange(1, end, 1):
+                # Go through each column of containment_matrix.csv. In a column, check which fragment had a score > 0.99. save the names of these fragments in cluster_rep array. Each column will have its own cluster_rep list.
                 cluster_rep = []
                 for ind, val in enumerate(columns[i]):
                     if ":" not in val:
@@ -807,7 +819,9 @@ if __name__ == '__main__':
                                 # print str(columns[i][0]) + "," + str(columns[0][ind])
                                 if columns[0][ind] not in cluster_rep:
                                     cluster_rep.append(columns[0][ind])
-                print cluster_rep
+                #print cluster_rep
+
+                # Find the fragment with longest length in cluster_rep list which will be considered as the representative of this cluster.
                 hit_length = 0
                 hit_name = ""
                 for hits in cluster_rep:
@@ -815,23 +829,31 @@ if __name__ == '__main__':
                     if hits_split[3] > hit_length:
                         hit_length = hits_split[3]
                         hit_name = hits
+
+                # WTF is happening here?
+                # hit_name is the name of representative key.
                 for hits in cluster_rep:
                     if hit_name not in hit_dict.values():
                         hit_dict[hit_name].append(hits)
                         if hits != hit_name:
                             v.append(hits)
+
+            print "length of hit_dict: %s" % len(hit_dict)
+            print "length of hits: %s" % len(set(v))
+
+            # Put all containment fragments key:value pairs in containment_rep.txt file for testing purposes. Note the values are contained in the key, so only key should appear in containment_removed_matrix.csv file.
             f_rep = open("%s/containment_rep.txt" % dedup_database_dir, 'w+')
             for key in hit_dict.keys():
                 if key not in v:
-                    print_string = "%s\t" % key
+                    print_string = "Key:%s\tValues:" % key
                     for containments in hit_dict[key]:
-                        print str(containments)
+                        #print str(containments)
                         print_string = print_string + "," + str(containments)
                     print_string = print_string + "\n"
                     f_rep.write(print_string)
                     # print str(key) + "\t" + str(hit_dict[key]) + "\t" + str(len(hit_dict[key])) + "\n"
             f_rep.close()
-            # print len(v)
+
             f = open("%s/containment_removed_matrix.csv" % dedup_database_dir, 'w+')
             f_containments = open("%s/Only_containments_matrix.csv" % dedup_database_dir, 'w+')
             c_reader = csv.reader(open('%s/containment_matrix.csv' % dedup_database_dir, 'r'), delimiter='\t')
@@ -846,6 +868,9 @@ if __name__ == '__main__':
                         p_str = p_str + i + ","
                     f_containments.write(p_str + '\n')
 
+            f.close()
+            f_containments.close()
+
             final_containment_removed_dir = "%s/Final_results/" % dedup_database_dir
             make_sure_path_exists(final_containment_removed_dir)
 
@@ -858,28 +883,65 @@ if __name__ == '__main__':
                     f_containment_removed_db_filenames.write("%s.fasta\n" % str(row[0]))
             f_containment_removed_db_filenames.close()
 
+            # Find linker sequences and break fragments, name individual broken fragments with a suffix
+            keep_logging(
+                'Searching for linker sequence in containment removed fragments',
+                'Searching for linker sequence in containment removed fragments',
+                logger,
+                'info')
 
-            # GENERATE FASTA FILENAMES ARRAY
             temp_fasta_dir_containment_removed = "/tmp/containment_removed_fasta_files"
             make_sure_path_exists(temp_fasta_dir_containment_removed)
+            os.system("rm %s/*" % temp_fasta_dir_containment_removed)
 
+            sequence = "NNNNNCATTCCATTCATTAATTAATTAATGAATGAATGNNNNN"
 
             containment_removed_db_filenames = []
-            #print "here"
+
             with open("%s/containment_removed_db_filenames.txt" % final_containment_removed_dir) as fpp:
-                #print "here"
+                # print "here"
                 for line in fpp:
                     line = line.strip()
-                    print line
-                    copy_fasta_tmp_cmd = "cp %s/%s %s/" % (dedup_database_dir, line, temp_fasta_dir_containment_removed)
-                    os.system(copy_fasta_tmp_cmd)
-                    #line = dedup_database_dir + "/" + line
-                    line = temp_fasta_dir_containment_removed + "/" + line
-                    containment_removed_db_filenames.append(line)
+                    for rec in SeqIO.parse("%s/%s" % (dedup_database_dir, line), "fasta"):
+                        if "NNNNNCATTCCATTCATTAATTAATTAATGAATGAATGNNNNN" in rec.seq:
+                            print "Linker sequence found in: %s" % line
+                            print "Number of linker sequence found: %s" % rec.seq.count(sequence)
+                            count = 1
+                            split_record = rec.seq.split('NNNNNCATTCCATTCATTAATTAATTAATGAATGAATGNNNNN')
+                            for i in split_record:
+                                if len(i) > 1999:
+                                    base = (os.path.basename(line)).replace('.fasta', '')
+                                    basefile = temp_fasta_dir_containment_removed + "/" + base + "_" + str(
+                                        count) + ".fasta"
+                                    # print basefile
+                                    temp_open = open(basefile, 'w+')
+                                    header = ">%s_%s" % (base, count)
+                                    fasta_string = "%s\n%s" % (header, i)
+                                    temp_open.write(fasta_string)
+                                    containment_removed_db_filenames.append(basefile)
+                                    # print len(i)
+                                    count += 1
+                                    temp_open.close()
+                        else:
+                            copy_fasta_tmp_cmd = "cp %s/%s %s/" % (
+                            dedup_database_dir, line, temp_fasta_dir_containment_removed)
+                            os.system(copy_fasta_tmp_cmd)
+                            line = temp_fasta_dir_containment_removed + "/" + line
+                            containment_removed_db_filenames.append(line)
             fpp.close()
 
-            print len(containment_removed_db_filenames)
-            print containment_removed_db_filenames
+
+            keep_logging(
+                'No of deduped fragments before containment removal: %s' % len(filenames_containments_array),
+                'No of deduped fragments before containment removal: %s' % len(filenames_containments_array),
+                logger,
+                'info')
+
+            keep_logging(
+                'No of deduped fragments after containment removal: %s' % len(containment_removed_db_filenames),
+                'No of deduped fragments after containment removal: %s' % len(containment_removed_db_filenames),
+                logger,
+                'info')
 
             # Run Nucmer original fasta vs final fragments database
             temp_cmd = "%s/temp_commands" % final_containment_removed_dir
@@ -893,9 +955,95 @@ if __name__ == '__main__':
             if args.jobrun:
                 create_job_parse(args.jobrun, command_array)
 
-        remove_temp_directories = "rm -rf /tmp/fasta_file /tmp/$PBS_JOBID"
-        #os.system(remove_temp_directories)
-        print "%s" % remove_temp_directories
+            # Read in the Matrix; find alignments with containments
+            os.chdir(temp_fasta_dir_containment_removed)
+            os.system("ls *.fasta | sed 's/.fasta//g' > %s/rownames" % final_containment_removed_dir)
+            newline = "\n"
+
+            # Prepare matrix from alignment score results.
+            header = "\t"
+            for fasta in filenames_array:
+                header = header + fasta.replace('.fasta', '') + "\t"
+
+            header_open = open("%s/header" % final_containment_removed_dir, 'w+')
+            header_open.write(header + '\n')
+            header_open.close()
+
+            os.system("paste %s/rownames %s/*.score > %s/Final_HGT_score_matrix_temp.csv" % (
+                final_containment_removed_dir, final_containment_removed_dir, final_containment_removed_dir))
+            os.system("cat %s/header %s/Final_HGT_score_matrix_temp.csv > %s/Final_HGT_score_matrix.csv" % (
+                final_containment_removed_dir, final_containment_removed_dir, final_containment_removed_dir))
+
+            keep_logging(
+                'The final HGT score matrix is: %s/Final_HGT_score_matrix.csv' % final_containment_removed_dir,
+                'The final HGT score matrix is: %s/Final_HGT_score_matrix.csv' % final_containment_removed_dir,
+                logger,
+                'info')
+
+        if "6" in steps_list:
+            # This step is for testing/debugging purposes only.
+
+            # Set up deduped database directories
+            database_directory = args.out + "/2018_Recombination_analysis_Results/All_vs_All/database/"
+            dedup_database_dir = database_directory + "/deduped_extracted_aligned_region_database/"
+
+            final_containment_removed_dir = "%s/Final_results/" % dedup_database_dir
+            make_sure_path_exists(final_containment_removed_dir)
+
+            # GENERATE FASTA FILENAMES ARRAY
+            temp_fasta_dir_containment_removed = "/tmp/containment_removed_fasta_files"
+            make_sure_path_exists(temp_fasta_dir_containment_removed)
+            os.system("rm %s/*" % temp_fasta_dir_containment_removed)
+
+
+            sequence = "NNNNNCATTCCATTCATTAATTAATTAATGAATGAATGNNNNN"
+
+            containment_removed_db_filenames = []
+            containment_removed_db_filenames_no_linkers = open("containment_removed_db_filenames_no_linkers.txt", 'w+')
+
+            with open("%s/containment_removed_db_filenames.txt" % final_containment_removed_dir) as fpp:
+                # print "here"
+                for line in fpp:
+                    line = line.strip()
+                    for rec in SeqIO.parse("%s/%s" % (dedup_database_dir, line), "fasta"):
+                        if "NNNNNCATTCCATTCATTAATTAATTAATGAATGAATGNNNNN" in rec.seq:
+                            print "Linker sequence found in: %s" % line
+                            print "Number of linker sequence found: %s" % rec.seq.count(sequence)
+                            count = 1
+                            split_record = rec.seq.split('NNNNNCATTCCATTCATTAATTAATTAATGAATGAATGNNNNN')
+                            for i in split_record:
+                                if len(i) > 1999:
+                                    base = (os.path.basename(line)).replace('.fasta', '')
+                                    basefile = temp_fasta_dir_containment_removed + "/" + base + "_" + str(count) + ".fasta"
+                                    # print basefile
+                                    temp_open = open(basefile, 'w+')
+                                    header = ">%s_%s" % (base, count)
+                                    fasta_string = "%s\n%s" % (header, i)
+                                    temp_open.write(fasta_string)
+                                    containment_removed_db_filenames.append(basefile)
+                                    containment_removed_db_filenames_no_linkers.write('%s\n' % basefile)
+                                    # print len(i)
+                                    count += 1
+                                    temp_open.close()
+                        else:
+                            copy_fasta_tmp_cmd = "cp %s/%s %s/" % (dedup_database_dir, line, temp_fasta_dir_containment_removed)
+                            containment_removed_db_filenames_no_linkers.write('%s\n' % line)
+                            os.system(copy_fasta_tmp_cmd)
+                            line = temp_fasta_dir_containment_removed + "/" + line
+                            containment_removed_db_filenames.append(line)
+            fpp.close()
+
+        if args.remove_temp == "yes":
+            remove_temp_directories = "rm -rf /tmp/fasta_file /tmp/$PBS_JOBID"
+            #os.system(remove_temp_directories)
+            print "%s" % remove_temp_directories
+            keep_logging(
+                'Removing temporary directories: %s, %s' % ("/tmp/fasta_file", "/tmp/$PBS_JOBID"),
+                'Removing temporary directories: %s, %s' % ("/tmp/fasta_file", "/tmp/$PBS_JOBID"),
+                logger,
+                'info')
+
+
     else:
         keep_logging('Running All Default Pipeline Steps...\n', 'Running All Default Pipeline Steps...\n', logger,
                      'info')

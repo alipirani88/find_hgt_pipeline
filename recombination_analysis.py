@@ -33,7 +33,7 @@ optional = parser.add_argument_group('Optional arguments')
 #optional.add_argument('-matrix', action='store', dest="matrix", help='Matrix to parse and remove containments', required=False)
 optional.add_argument('-remove_temp', action='store', dest="remove_temp", help='Remove Temporary directories from /tmp/ folder: yes/no', required=False)
 optional.add_argument('-steps', action='store', dest="steps",
-                    help='Analysis Steps to be performed. Default: All or 1,2,3,4,5'
+                    help='Analysis Steps to be performed. Use All or 1,2,3,4,5 to run all steps of pipeline.'
                          '\n1: Align all assembly fasta input file against each other using Nucmer.'
                          '\n2: Parses the Nucmer generated aligned coordinates files, extract individual aligned fragments and their respective annotation for metadata.'
                          '\n3: Generate a database of these extracted aligned regions by deduplicating and removing containments using BBmaps dedupe tool.'
@@ -81,7 +81,7 @@ def create_job(jobrun, commands_list):
         Generate a Command list of each job and run it in parallel on different cores available on local system
         """
         command_file = commands_list
-        print len(command_file)
+        #print len(command_file)
         num_cores = multiprocessing.cpu_count()
         results = Parallel(n_jobs=num_cores)(delayed(run_command)(command) for command in command_file)
 
@@ -176,7 +176,7 @@ def create_job_containments(jobrun, commands_list):
         Generate a Command list of each job and run it in parallel on different cores available on local system
         """
         command_file = commands_list
-        print len(command_file)
+        #print len(command_file)
         num_cores = multiprocessing.cpu_count()
         results = Parallel(n_jobs=num_cores)(delayed(run_command)(command) for command in command_file)
 
@@ -224,7 +224,7 @@ def create_job_containments_final(jobrun, commands_list):
         Generate a Command list of each job and run it in parallel on different cores available on local system
         """
         command_file = commands_list
-        print len(command_file)
+        #print len(command_file)
         num_cores = multiprocessing.cpu_count()
         results = Parallel(n_jobs=num_cores)(delayed(run_command)(command) for command in command_file)
 
@@ -482,7 +482,7 @@ def generate_parse_coord_db_aggregate_jobs(jobrun, filenames_array, filenames_db
         #f1.write(job_print_string)
     #f1.close()
     f.close()
-    print len(command_array)
+    #print len(command_array)
     return command_array
 
 def generate_parse_containments_jobs(jobrun, filenames_array, filenames_db_array, temp_cmd):
@@ -502,7 +502,7 @@ def generate_parse_containments_jobs(jobrun, filenames_array, filenames_db_array
         #f1.write(job_print_string)
     #f1.close()
     f.close()
-    print len(command_array)
+    #print len(command_array)
     return command_array
 
 def generate_parse_containments_final_jobs(jobrun, filenames_array, filenames_db_array, temp_cmd):
@@ -522,7 +522,7 @@ def generate_parse_containments_final_jobs(jobrun, filenames_array, filenames_db
         #f1.write(job_print_string)
     #f1.close()
     f.close()
-    print len(command_array)
+    #print len(command_array)
     return command_array
 
 #Main Steps: Start of pipeline
@@ -855,8 +855,8 @@ if __name__ == '__main__':
                         if hits != hit_name:
                             v.append(hits)
 
-            print "length of hit_dict: %s" % len(hit_dict)
-            print "length of hits: %s" % len(set(v))
+            #print "length of hit_dict: %s" % len(hit_dict)
+            #print "length of hits: %s" % len(set(v))
 
             # Put all containment fragments key:value pairs in containment_rep.txt file for testing purposes. Note the values are contained in the key, so only key should appear in containment_removed_matrix.csv file.
             f_rep = open("%s/containment_rep.txt" % dedup_database_dir, 'w+')
@@ -960,17 +960,17 @@ if __name__ == '__main__':
                 logger,
                 'info')
 
-            # Run Nucmer original fasta vs final fragments database
-            temp_cmd = "%s/temp_commands" % final_containment_removed_dir
-            command_array = run_nucmer_db_final(temp_cmd)
-            if args.jobrun:
-                create_job_containments_final(args.jobrun, command_array)
-
-            temp_cmd = "%s/temp_commands_parse_containments.sh" % final_containment_removed_dir
-
-            command_array = generate_parse_containments_final_jobs(args.jobrun, filenames_array, containment_removed_db_filenames, temp_cmd)
-            if args.jobrun:
-                create_job_parse(args.jobrun, command_array)
+            # # Run Nucmer original fasta vs final fragments database
+            # temp_cmd = "%s/temp_commands" % final_containment_removed_dir
+            # command_array = run_nucmer_db_final(temp_cmd)
+            # if args.jobrun:
+            #     create_job_containments_final(args.jobrun, command_array)
+            #
+            # temp_cmd = "%s/temp_commands_parse_containments.sh" % final_containment_removed_dir
+            #
+            # command_array = generate_parse_containments_final_jobs(args.jobrun, filenames_array, containment_removed_db_filenames, temp_cmd)
+            # if args.jobrun:
+            #     create_job_parse(args.jobrun, command_array)
 
             # Read in the Matrix; find alignments with containments
             os.chdir(temp_fasta_dir_containment_removed)
@@ -990,6 +990,40 @@ if __name__ == '__main__':
                 final_containment_removed_dir, final_containment_removed_dir, final_containment_removed_dir))
             os.system("cat %s/header %s/Final_HGT_score_matrix_temp.csv > %s/Final_HGT_score_matrix.csv" % (
                 final_containment_removed_dir, final_containment_removed_dir, final_containment_removed_dir))
+
+
+            keep_logging(
+                'Generating annotation metadata file from %s/Extracted_aligned_region_dedup_cluster_99.tsv.' % final_containment_removed_dir,
+                'Generating annotation metadata file from %s/Extracted_aligned_region_dedup_cluster_99.tsv.' % final_containment_removed_dir,
+                logger,
+                'info')
+            aligned_fragments_meta = database_directory + "/Extracted_aligned_region_dedup_cluster_99.tsv"
+            aligned_fragments_meta_dict = {}
+            with open("%s/Extracted_aligned_region_dedup_cluster_99.tsv" % database_directory) as fpp:
+                for lines in fpp:
+                    line_split = lines.split('\t')
+                    if line_split[0] not in aligned_fragments_meta_dict.keys():
+                        aligned_fragments_meta_dict[line_split[0]] = line_split[5]
+                    else:
+                         keep_logging(
+                'Duplicate aligned fragment key found: %s' % line_split[0],
+                'Duplicate aligned fragment key found: %s' % line_split[0],
+                logger,
+                'info')
+
+
+
+            grep_meta_file = open(
+                "%s/grep_meta.sh" % final_containment_removed_dir, 'w+')
+            for frags in containment_removed_db_filenames:
+                grep_meta_file.write("grep -w '%s' %s/Extracted_aligned_region_dedup_cluster_99.tsv\n" % (os.path.basename(frags.replace(".fasta", "")), database_directory))
+
+            os.system("bash %s/grep_meta.sh > %s/Final_HGT_score_matrix_meta.tsv" % (final_containment_removed_dir, final_containment_removed_dir))
+            keep_logging(
+                'Running: bash %s/grep_meta.sh > %s/Final_HGT_score_matrix_meta.tsv' % (final_containment_removed_dir, final_containment_removed_dir),
+                'Running: bash %s/grep_meta.sh > %s/Final_HGT_score_matrix_meta.tsv' % (final_containment_removed_dir, final_containment_removed_dir),
+                logger,
+                'info')
 
             keep_logging(
                 'The final HGT score matrix is: %s/Final_HGT_score_matrix.csv' % final_containment_removed_dir,
@@ -1064,196 +1098,5 @@ if __name__ == '__main__':
                 logger,
                 'info')
 
-
     else:
-        keep_logging('Running All Default Pipeline Steps...\n', 'Running All Default Pipeline Steps...\n', logger,
-                     'info')
-        keep_logging('Running Step 1: Nucmer All-vs-All', 'Running Step 1: Nucmer All-vs-All', logger,
-                     'info')
-        # Step 1
-        make_sure_path_exists(args.out)
-        temp_cmd = "%s/temp_commands" % args.out
-        command_array = run_nucmer_parallel(temp_cmd)
-        if args.jobrun:
-            create_job(args.jobrun, command_array)
-
-        # Step 2
-        keep_logging('Running Step 2: Parsing Nucmer All-vs-All coordinates results',
-                     'Running Step 2: Parsing Nucmer All-vs-All coordinates results', logger,
-                     'info')
-        temp_cmd_parse_coord = "%s/temp_commands_parse_coord" % args.out
-        command_array = generate_parse_coord_aggregate_jobs(args.jobrun, filenames_array, temp_cmd_parse_coord)
-        if args.jobrun:
-            create_job_parse(args.jobrun, command_array)
-
-        # Move Aggregate score results
-        aggregate_results = args.out + "/aggregate_results/"
-        make_sure_path_exists(aggregate_results)
-        os.system("mv %s/*.aligned %s/*.score %s" % (args.out, args.out, aggregate_results))
-
-        # Add Nursing Home steps here later
-
-        # Step 3
-        keep_logging('Running Step 3: Generate a preliminary database from the extracted aligned region.',
-                     'Running Step 3: Generate a preliminary database from the extracted aligned region.', logger,
-                     'info')
-        # A lot of the code and path to executables in this step are hard coded here
-        database_directory = args.out + "/2018_Recombination_analysis_Results/All_vs_All/database/"
-        dedupe_cmd = "/nfs/esnitkin/bin_group/bbmap/dedupe.sh in=%s/Extracted_aligned_region.fasta out=%s/Extracted_aligned_region_dedup.fasta" % (database_directory, database_directory)
-        print "Running: %s" % dedupe_cmd
-        os.system(dedupe_cmd)
-        dedupe_containment_cmd = "/nfs/esnitkin/bin_group/bbmap/dedupe.sh in=%s/Extracted_aligned_region_dedup.fasta out=%s/Extracted_aligned_region_dedup_cluster_99.fasta minidentity=99" % (database_directory, database_directory)
-        print "Running: %s" % dedupe_containment_cmd
-        os.system(dedupe_containment_cmd)
-        tab = "\\t"
-        get_meta_annotations = "for i in `grep '>' %s/Extracted_aligned_region_dedup_cluster_99.fasta | sed 's/>//g'`; do echo \"grep '^$i' %s/Extracted_aligned_region.fasta_meta.tsv | awk -F'\\t' -v OFS='%s' '{print \$1,\$2,\$3,\$4,\$5,\$6}'\"; done > %s/grep_meta.sh" % (
-        database_directory, database_directory, tab, database_directory)
-
-        print "Running: %s" % get_meta_annotations
-        print "Running: bash %s/grep_meta.sh > %s/Extracted_aligned_region_dedup_cluster_99.tsv" % (database_directory, database_directory)
-        os.system(get_meta_annotations)
-        os.system("bash %s/grep_meta.sh > %s/Extracted_aligned_region_dedup_cluster_99.tsv" % (database_directory, database_directory))
-
-        dedup_database_dir = database_directory + "/deduped_extracted_aligned_region_database/"
-        make_sure_path_exists(dedup_database_dir)
-
-        get_deduped_extracted_aligned_region_database_files = "for i in `awk -F'\\t' '{print $1}' %s/Extracted_aligned_region_dedup_cluster_99.tsv`; do  echo \"$i\" > %s/$i.txt; done" % (database_directory, dedup_database_dir)
-
-        print "Running: %s" % get_deduped_extracted_aligned_region_database_files
-        os.system(get_deduped_extracted_aligned_region_database_files)
-
-        extract_regions_from_file = "for i in `ls %s/*.txt`; do base=`echo $i | sed 's/.txt//g'`; ~/bin/seqtk/seqtk subseq %s/Extracted_aligned_region_dedup_cluster_99.fasta $i > $base.fasta; done" % (dedup_database_dir, database_directory)
-        print "Running: %s" % extract_regions_from_file
-        os.system(extract_regions_from_file)
-
-        ####################################################
-        # Step 4
-        database_directory = args.out + "/2018_Recombination_analysis_Results/All_vs_All/database/"
-        dedup_database_dir = database_directory + "/deduped_extracted_aligned_region_database/"
-        os.chdir(dedup_database_dir)
-
-        get_extracted_aligned_region_dedup_cluster_99_fasta_files = "ls *.fasta > %s/Extracted_aligned_region_dedup_cluster_99_fasta_filenames.txt" % (dedup_database_dir)
-        print "Running: %s" % get_extracted_aligned_region_dedup_cluster_99_fasta_files
-        os.system(get_extracted_aligned_region_dedup_cluster_99_fasta_files)
-
-        # Run Step 1 again but with only Extracted_aligned_region_dedup_cluster_99_fasta_filenames
-        output_folder = dedup_database_dir
-
-        # GENERATE FASTA FILENAMES ARRAY
-        filenames_containments_array = []
-        with open("%s/Extracted_aligned_region_dedup_cluster_99_fasta_filenames.txt" % dedup_database_dir) as fp:
-            for line in fp:
-                line = line.strip()
-                line = dedup_database_dir + "/" + line
-                filenames_containments_array.append(line)
-        fp.close()
-        # temp_cmd = "%s/temp_commands" % output_folder
-        # command_array = run_nucmer_parallel_containment(temp_cmd)
-        # if args.jobrun:
-        #     create_job_containments(args.jobrun, command_array)
-
-
-        # Step 5
-        temp_cmd = "%s/temp_commands_parse_containments.sh" % args.out
-
-        # command_array = generate_parse_containments_jobs(args.jobrun, filenames_containments_array, filenames_containments_array, temp_cmd)
-        # if args.jobrun:
-        #     create_job_parse(args.jobrun, command_array)
-
-        # Read in the Matrix
-        os.system("cd %s" % dedup_database_dir)
-        os.system("ls *.fasta | sed 's/.fasta//g' > %s/rownames" % dedup_database_dir)
-        newline = "\n"
-        os.system("ls *.fasta | sed 's/.fasta//g' | tr '\\n' '\\t' | sed 's/^/\\t/g' | sed 's/$/\\n/g' > %s/header" % (dedup_database_dir))
-        os.system("paste %s/rownames %s/*.score > %s/containment_matrix_temp.csv" % (dedup_database_dir, dedup_database_dir, dedup_database_dir))
-        os.system("cat %s/header %s/containment_matrix_temp.csv > %s/containment_matrix.csv" % (dedup_database_dir, dedup_database_dir, dedup_database_dir))
-
-        c_reader = csv.reader(open('%s/containment_matrix.csv' % dedup_database_dir, 'r'), delimiter='\t')
-        columns = list(zip(*c_reader))
-        counts = 1
-        end = len(filenames_containments_array) + 1
-        print end
-        hit_dict = defaultdict(list)
-        v = []
-        for i in xrange(1, end, 1):
-            cluster_rep = []
-            for ind, val in enumerate(columns[i]):
-                if ":" not in val:
-                    if float(val) >= 0.99:
-                        if columns[i][0] != columns[0][ind]:
-                            # print str(columns[i][0]) + "," + str(columns[0][ind])
-                            if columns[0][ind] not in cluster_rep:
-                                cluster_rep.append(columns[0][ind])
-            print cluster_rep
-            hit_length = 0
-            hit_name = ""
-            for hits in cluster_rep:
-                hits_split = hits.split(':')
-                if hits_split[3] > hit_length:
-                    hit_length = hits_split[3]
-                    hit_name = hits
-            for hits in cluster_rep:
-                if hit_name not in hit_dict.values():
-                    hit_dict[hit_name].append(hits)
-                    if hits != hit_name:
-                        v.append(hits)
-        f_rep = open("./containment_rep.txt", 'w+')
-        for key in hit_dict.keys():
-            if key not in v:
-                print_string = "%s\t" % key
-                for containments in hit_dict[key]:
-                    print str(containments)
-                    print_string = print_string + "," + str(containments)
-                print_string = print_string + "\n"
-                f_rep.write(print_string)
-                # print str(key) + "\t" + str(hit_dict[key]) + "\t" + str(len(hit_dict[key])) + "\n"
-        f_rep.close()
-        #print len(v)
-        f = open("./containment_removed_matrix.csv", 'w+')
-        f_containments = open("./Only_containments_matrix.csv", 'w+')
-        c_reader = csv.reader(open('containment_matrix.csv', 'r'), delimiter='\t')
-        for row in c_reader:
-            p_str = ""
-            if row[0] not in v:
-                for i in row:
-                    p_str = p_str + i + ","
-                f.write(p_str + '\n')
-            else:
-                for i in row:
-                    p_str = p_str + i + ","
-                f_containments.write(p_str + '\n')
-
-        final_containment_removed_dir = "%s/Final_results/" % dedup_database_dir
-        make_sure_path_exists(final_containment_removed_dir)
-
-        f_containment_removed_db_filenames = open("%s/containment_removed_db_filenames.txt" % final_containment_removed_dir, 'w+')
-        c_reader_2 = csv.reader(open('%s/containment_removed_matrix.csv' % dedup_database_dir, 'r'), delimiter=',')
-        for row in c_reader_2:
-            next(c_reader_2, None)
-            if row[0] != "":
-                f_containment_removed_db_filenames.write("%s.fasta\n" % str(row[0]))
-
-        # GENERATE FASTA FILENAMES ARRAY
-        #########Stuck here
-        containment_removed_db_filenames = []
-        print "here"
-        with open("%s/containment_removed_db_filenames.txt" % final_containment_removed_dir) as fpp:
-            print "here"
-            for line in fpp:
-                line = line.strip()
-                print line
-                print "here"
-                line = dedup_database_dir + "/" + line
-                containment_removed_db_filenames.append(line)
-        fpp.close()
-        print len(containment_removed_db_filenames)
-        # temp_cmd = "%s/temp_commands" % final_containment_removed_dir
-        # command_array = run_nucmer_db_final(temp_cmd)
-        # if args.jobrun:
-        #     create_job_containments_final(args.jobrun, command_array)
-
-        # temp_cmd = "%s/temp_commands_parse_containments.sh" % args.out
-        #
-        # command_array = generate_parse_containments_final_jobs(args.jobrun, filenames_containments_array, filenames_containments_array, temp_cmd)
-        # if args.jobrun:
-        #     create_job_parse(args.jobrun, command_array)
+        keep_logging('Exiting. Require -steps argument to run the script.', 'Exiting. Require -steps argument to run the script.', logger, 'exception')

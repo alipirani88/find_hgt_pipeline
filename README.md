@@ -95,3 +95,8 @@ python recombination_analysis.py -filename filenames -out /path-to-out-dir/ -pro
 
 ```
 
+### Output:
+
+- Final_HGT_score_matrix.csv: This file contain final score matrix computed from nucmer alignments between uniquely extracted fragments and input assembly fasta file.
+
+- Final_HGT_score_matrix_meta.tsv: This file contains gene annotations for each uniquely extracted fragments.

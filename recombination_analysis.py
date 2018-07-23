@@ -755,7 +755,7 @@ if __name__ == '__main__':
             dedup_database_dir = database_directory + "/deduped_extracted_aligned_region_database/"
             os.chdir(dedup_database_dir)
 
-            get_extracted_aligned_region_dedup_cluster_99_fasta_files = "ls *.fasta > %s/Extracted_aligned_region_dedup_cluster_99_fasta_filenames.txt" % (
+            get_extracted_aligned_region_dedup_cluster_99_fasta_files = "ls *.fasta | grep -v 'containment' | grep -v 'Extracted' > %s/Extracted_aligned_region_dedup_cluster_99_fasta_filenames.txt" % (
                 dedup_database_dir)
 
             keep_logging(
@@ -852,7 +852,7 @@ if __name__ == '__main__':
             # dedup_database_dir, dedup_database_dir, dedup_database_dir))
 
             call("cd %s" % dedup_database_dir, logger)
-            call("ls *.fasta | sed 's/.fasta//g' > %s/rownames" % dedup_database_dir, logger)
+            call("ls *.fasta | sed 's/.fasta//g' | grep -v 'containment' | grep -v 'Extract' > %s/rownames" % dedup_database_dir, logger)
             newline = "\n"
             call(
                 "ls *.fasta | sed 's/.fasta//g' | tr '\\n' '\\t' | sed 's/^/\\t/g' | sed 's/$/\\n/g' > %s/header" % (

@@ -52,6 +52,7 @@ usage: recombination_analysis.py [-h] -filename FILENAME -out OUT -prokka_dir
                                  PROKKA_DIR [-jobrun JOBRUN] -dir DIR
                                  -analysis ANALYSIS_NAME
                                  [-remove_temp REMOVE_TEMP] -steps STEPS
+                                 [-pbs PBS]
 
 Recombination/HGT Analysis.
 The pipeline takes a list of fasta files and aligns All-vs-All using Nucmer.
@@ -76,12 +77,13 @@ Required arguments:
 Optional arguments:
   -remove_temp REMOVE_TEMP
                         Remove Temporary directories from /tmp/ folder: yes/no
-  -steps STEPS          Analysis Steps to be performed. Default: All or 1,2,3,4,5
+  -steps STEPS          Analysis Steps to be performed. Use All or 1,2,3,4,5 to run all steps of pipeline.
                         1: Align all assembly fasta input file against each other using Nucmer.
                         2: Parses the Nucmer generated aligned coordinates files, extract individual aligned fragments and their respective annotation for metadata.
                         3: Generate a database of these extracted aligned regions by deduplicating and removing containments using BBmaps dedupe tool.
                         4: Remove containments from preliminary database by running nucmer
                         5: Performs nucmer alignment between input fasta file and final containment removed extracted fragments to generate an alignment score matrix.
+  -pbs PBS              Provide PBS memory resources for individual nucmer jobs. Default: nodes=1:ppn=1,pmem=4000mb,walltime=6:00:00
 ```
 
 ### Example:

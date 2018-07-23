@@ -39,12 +39,12 @@ optional.add_argument('-steps', action='store', dest="steps",
                          '\n3: Generate a database of these extracted aligned regions by deduplicating and removing containments using BBmaps dedupe tool.'
                          '\n4: Remove containments from preliminary database by running nucmer'
                          '\n5: Performs nucmer alignment between input fasta file and final containment removed extracted fragments to generate an alignment score matrix.', required=True)
+optional.add_argument('-pbs', action='store', dest="pbs", help='Provide PBS memory resources for individual nucmer jobs. Default: nodes=1:ppn=1,pmem=4000mb,walltime=6:00:00', required=False)
 
 args = parser.parse_args()
 
 # Pipeline Methods
-def create_job(jobrun, commands_list):
-
+def create_job(jobrun, commands_list, logger):
     """
     Based on type of jobrun; generate jobs and run accordingly.
     :param jobrun:
@@ -55,7 +55,7 @@ def create_job(jobrun, commands_list):
         """
         Supports only PBS clusters for now.
         """
-        # job_directory = args.out + "/" + "temp_jobs"
+        keep_logging('Running jobs in cluster mode', 'Running jobs in cluster mode', logger, 'info')
         job_directory = args.out + "/"
         make_sure_path_exists(job_directory)
         count = 0
@@ -67,19 +67,19 @@ def create_job(jobrun, commands_list):
             f1.write(job_print_string)
             count += 1
             f1.close()
-        #os.system("mv %s/*.pbs %s/temp" % (args.filter2_only_snp_vcf_dir, args.filter2_only_snp_vcf_dir))
-        #pbs_dir = job_directory + "/nucmer_job_command_*.pbs"
         pbs_dir = job_directory + "/*/*_parallel_cluster.pbs"
         pbs_scripts = glob.glob(pbs_dir)
         for i in pbs_scripts:
-            print "Running: qsub %s" % i
+            keep_logging('Running: bash %s' % i, 'Running: bash %s' % i, logger, 'info')
             #os.system("bash %s" % i)
-            os.system("qsub %s" % i)
+            #os.system("qsub %s" % i)
+            call("qsub %s" % i, logger)
 
     elif jobrun == "parallel-local":
         """
         Generate a Command list of each job and run it in parallel on different cores available on local system
         """
+        keep_logging('\nRunning jobs in parallel-local mode', '\nRunning jobs in parallel-local mode', logger, 'info')
         command_file = commands_list
         #print len(command_file)
         num_cores = multiprocessing.cpu_count()
@@ -92,9 +92,10 @@ def create_job(jobrun, commands_list):
         """
         command_file = commands_list
         for i in command_file:
-            os.system(i)
+            #os.system(i)
+            call("%s" % i, logger)
 
-def create_job_parse(jobrun, commands_list):
+def create_job_parse(jobrun, commands_list, logger):
 
     """
     Based on type of jobrun; generate jobs and run accordingly.
@@ -106,6 +107,7 @@ def create_job_parse(jobrun, commands_list):
         """
         Supports only PBS clusters for now.
         """
+        keep_logging('\nRunning jobs in cluster mode', '\nRunning jobs in cluster mode', logger, 'info')
         job_directory = args.out + "/" + "temp_jobs"
         make_sure_path_exists(job_directory)
         count = 0
@@ -120,14 +122,16 @@ def create_job_parse(jobrun, commands_list):
         pbs_dir = job_directory + "/nucmer_coordinates_job_command_*.pbs"
         pbs_scripts = glob.glob(pbs_dir)
         for i in pbs_scripts:
-            print "Running: qsub %s" % i
+            keep_logging('Running: qsub %s' % i, 'Running: qsub %s' % i, logger, 'info')
             #os.system("bash %s" % i)
-            os.system("qsub %s" % i)
+            #os.system("qsub %s" % i)
+            call("qsub %s" % i, logger)
 
     elif jobrun == "parallel-local":
         """
         Generate a Command list of each job and run it in parallel on different cores available on local system
         """
+        keep_logging('\nRunning jobs in parallel-local mode', '\nRunning jobs in parallel-local mode', logger, 'info')
         command_file = commands_list
         #print len(command_file)
         num_cores = multiprocessing.cpu_count()
@@ -137,11 +141,13 @@ def create_job_parse(jobrun, commands_list):
         """
         Generate a Command list of each job and run it on local system one at a time
         """
+        keep_logging('\nRunning jobs in local mode', '\nRunning jobs in local mode', logger, 'info')
         command_file = commands_list
         for i in command_file:
-            os.system(i)
+            #os.system(i)
+            call("%s" % i, logger)
 
-def create_job_containments(jobrun, commands_list):
+def create_job_containments(jobrun, commands_list, logger):
 
     """
     Based on type of jobrun; generate jobs and run accordingly.
@@ -168,13 +174,15 @@ def create_job_containments(jobrun, commands_list):
         pbs_dir = job_directory + "/nucmer_job_command_*.pbs"
         pbs_scripts = glob.glob(pbs_dir)
         for i in pbs_scripts:
-            print "Running: qsub %s" % i
-            os.system("qsub %s" % i)
+            keep_logging('Running: qsub %s' % i, 'Running: qsub %s' % i, logger, 'info')
+            #os.system("qsub %s" % i)
+            call("qsub %s" % i, logger)
 
     elif jobrun == "parallel-local":
         """
         Generate a Command list of each job and run it in parallel on different cores available on local system
         """
+        keep_logging('\nRunning jobs in parallel-local mode', '\nRunning jobs in parallel-local mode', logger, 'info')
         command_file = commands_list
         #print len(command_file)
         num_cores = multiprocessing.cpu_count()
@@ -187,9 +195,10 @@ def create_job_containments(jobrun, commands_list):
         """
         command_file = commands_list
         for i in command_file:
-            os.system(i)
+            #os.system(i)
+            call("%s" % i, logger)
 
-def create_job_containments_final(jobrun, commands_list):
+def create_job_containments_final(jobrun, commands_list, logger):
 
     """
     Based on type of jobrun; generate jobs and run accordingly.
@@ -216,13 +225,15 @@ def create_job_containments_final(jobrun, commands_list):
         pbs_dir = job_directory + "/nucmer_job_command_*.pbs"
         pbs_scripts = glob.glob(pbs_dir)
         for i in pbs_scripts:
-            print "Running: qsub %s" % i
-            os.system("qsub %s" % i)
+            keep_logging('Running: qsub %s' % i, 'Running: qsub %s' % i, logger, 'info')
+            #os.system("qsub %s" % i)
+            call("qsub %s" % i, logger)
 
     elif jobrun == "parallel-local":
         """
         Generate a Command list of each job and run it in parallel on different cores available on local system
         """
+        keep_logging('\nRunning jobs in parallel-local mode', '\nRunning jobs in parallel-local mode', logger, 'info')
         command_file = commands_list
         #print len(command_file)
         num_cores = multiprocessing.cpu_count()
@@ -235,7 +246,8 @@ def create_job_containments_final(jobrun, commands_list):
         """
         command_file = commands_list
         for i in command_file:
-            os.system(i)
+            #os.system(i)
+            call("%s" % i, logger)
 
 def make_sure_path_exists(out_path):
     """
@@ -247,27 +259,27 @@ def make_sure_path_exists(out_path):
         os.makedirs(out_path)
     except OSError as exception:
         if exception.errno != errno.EEXIST:
-            print "Errors in output folder path! please change the output path or analysis name\n"
+            keep_logging('Errors in output folder path! please change the output path or analysis name\n', 'Errors in output folder path! please change the output path or analysis name\n', logger, 'info')
             exit()
 
-def run_nucmer(temp_cmd):
-    f = open(temp_cmd, 'w+')
-    command_array = []
-    for file in filenames_array:
-        filebase = os.path.basename(file)
-        mkdir_command = "mkdir %s/%s" % (args.out, filebase.replace('.fasta', ''))
-        os.system(mkdir_command)
-        for file_again in filenames_array:
-            file_again_base = os.path.basename(file_again)
-            prefix = filebase.replace('.fasta', '') + "_" + file_again_base.replace('.fasta', '')
-            command = "nucmer --maxmatch --prefix=%s %s %s &>/dev/null && show-coords -r -c -l -T %s.delta > %s.coords && rm %s.delta && mv %s.coords %s/%s\n" % (prefix, file, file_again, prefix, prefix, prefix, prefix, args.out, filebase.replace('.fasta', ''))
-            command_array.append(command)
-            f.write(command)
-    f.close()
-    return command_array
+# Deprecated: Removed before release
+# def run_nucmer(temp_cmd):
+#     f = open(temp_cmd, 'w+')
+#     command_array = []
+#     for file in filenames_array:
+#         filebase = os.path.basename(file)
+#         mkdir_command = "mkdir %s/%s" % (args.out, filebase.replace('.fasta', ''))
+#         os.system(mkdir_command)
+#         for file_again in filenames_array:
+#             file_again_base = os.path.basename(file_again)
+#             prefix = filebase.replace('.fasta', '') + "_" + file_again_base.replace('.fasta', '')
+#             command = "nucmer --maxmatch --prefix=%s %s %s &>/dev/null && show-coords -r -c -l -T %s.delta > %s.coords && rm %s.delta && mv %s.coords %s/%s\n" % (prefix, file, file_again, prefix, prefix, prefix, prefix, args.out, filebase.replace('.fasta', ''))
+#             command_array.append(command)
+#             f.write(command)
+#     f.close()
+#     return command_array
 
-def run_nucmer_parallel(temp_cmd):
-    #f = open(temp_cmd, 'w+')
+def run_nucmer_parallel(temp_cmd, logger):
     command_array_cluster = []
     command_array_local = []
 
@@ -284,12 +296,10 @@ def run_nucmer_parallel(temp_cmd):
         run_parallel_script_cluster = "%s/%s/%s_parallel_cluster.pbs" % (args.out, filebase.replace('.fasta', ''), filebase)
         run_parallel_script_local = "%s/%s/%s_parallel_local.pbs" % (args.out, filebase.replace('.fasta', ''), filebase)
 
-        print filebase_command_cluster
-        print filebase_command_local
-        print run_parallel_script_cluster
-        print run_parallel_script_local
 
-        os.system(mkdir_command)
+
+        #os.system(mkdir_command)
+        call("%s" % mkdir_command, logger)
 
         for file_again in filenames_array:
             file_again_base = os.path.basename(file_again)
@@ -337,14 +347,18 @@ def run_nucmer_parallel(temp_cmd):
         pbs_scripts_local = glob.glob("%s/%s/%s_parallel_local.pbs" % (args.out, filebase.replace('.fasta', ''), filebase))
         pbs_scripts_cluster = glob.glob("%s/%s/%s_parallel_cluster.pbs" % (args.out, filebase.replace('.fasta', ''), filebase))
 
-        for i in pbs_scripts_cluster:
-            print "Running: qsub %s" % i
 
-    #f.close()
+    keep_logging('Nucmer command list for each file can be found in: %s/*/*.sh' % args.out,
+                 'Nucmer command list for each file can be found in: %s/*/*.sh' % args.out, logger, 'info')
+
+    keep_logging('Nucmer jobs for each file can be found in: %s/*/*.pbs' % args.out,
+                 'Nucmer jobs for each file can be found in: %s/*/*.pbs' % args.out, logger,
+                 'info')
+
 
     return command_array_local, command_array_cluster
 
-def run_nucmer_parallel_containment(temp_cmd):
+def run_nucmer_parallel_containment(temp_cmd, logger):
     f = open(temp_cmd, 'w+')
     command_array = []
     for file in filenames_containments_array:
@@ -353,9 +367,11 @@ def run_nucmer_parallel_containment(temp_cmd):
         mkdir_command = "mkdir %s/%s" % (dedup_database_dir, filebase.replace('.fasta', ''))
         filebase_command = "%s/%s/%s_commands.sh" % (dedup_database_dir, filebase.replace('.fasta', ''), filebase)
         run_parallel_script = "%s/%s/%s_parallel.pbs" % (dedup_database_dir, filebase.replace('.fasta', ''), filebase)
-        print filebase_command
-        print run_parallel_script
-        os.system(mkdir_command)
+
+
+
+        #os.system(mkdir_command)
+        call("%s" % mkdir_command, logger)
         for file_again in filenames_containments_array:
             file_again_base = os.path.basename(file_again)
             prefix = filebase.replace('.fasta', '') + "_" + file_again_base.replace('.fasta', '')
@@ -374,10 +390,16 @@ def run_nucmer_parallel_containment(temp_cmd):
         job_print_string = "#PBS -N %s\n#PBS -M apirani@med.umich.edu\n#PBS -m a\n#PBS -V\n#PBS -l nodes=1:ppn=8,pmem=4000mb,walltime=240:00:00\n#PBS -q fluxod\n#PBS -A esnitkin_fluxod\n#PBS -l qos=flux\n\n%s\n" % (job_name, runjobs)
         run_parallel_script_file.write(job_print_string)
         pbs_scripts = glob.glob("%s/%s/%s_parallel.pbs" % (dedup_database_dir, filebase.replace('.fasta', ''), filebase))
-        for i in pbs_scripts:
-            print "Running: qsub %s" % i
+        # for i in pbs_scripts:
+        #     keep_logging('Running: qsub %s' % i, 'Running: qsub %s' % i, logger, 'info')
     f.close()
-
+    keep_logging('Nucmer containment command list to run in parallel-local mode can be found in: %s/*/*.sh' % dedup_database_dir,
+                 'Nucmer containment command list to run paralleley can be found in: %s/*/*.sh' % dedup_database_dir, logger,
+                 'info')
+    keep_logging('Nucmer containment jobs to run in parallel-local mode can be found in: %s/*/*.pbs' % dedup_database_dir,
+                 'Nucmer containment jobs to run in parallel-local mode can be found in: %s/*/*.pbs' % dedup_database_dir,
+                 logger,
+                 'info')
     return command_array
 
 def run_nucmer_db(temp_cmd):
@@ -389,9 +411,11 @@ def run_nucmer_db(temp_cmd):
         mkdir_command = "mkdir %s/%s" % (args.out, filebase.replace('.fasta', ''))
         filebase_command = "%s/%s/%s_commands.sh" % (args.out, filebase.replace('.fasta', ''), filebase)
         run_parallel_script = "%s/%s/%s_parallel.pbs" % (args.out, filebase.replace('.fasta', ''), filebase)
-        print filebase_command
-        print run_parallel_script
-        os.system(mkdir_command)
+
+        keep_logging('Nucmer containment commands to run in parallel-local mode can be found in: %s' % filebase_command, 'Nucmer containment commands to run in parallel-local mode can be found in: %s' % filebase_command, logger, 'info')
+        keep_logging('Nucmer containment jobs to run in parallel-local mode can be found in: %s' % run_parallel_script, 'Nucmer containment jobs to run in parallel-local mode can be found in: %s' % run_parallel_script, logger, 'info')
+        #os.system(mkdir_command)
+        call("%s" % mkdir_command, logger)
         for file_again in filenames_db_array:
             file_again_base = os.path.basename(file_again)
             prefix = filebase.replace('.fasta', '') + ":" + file_again_base.replace('.fasta', '')
@@ -412,7 +436,7 @@ def run_nucmer_db(temp_cmd):
     f.close()
     return command_array
 
-def run_nucmer_db_final(temp_cmd):
+def run_nucmer_db_final(temp_cmd, logger):
     f = open(temp_cmd, 'w+')
     command_array = []
     for file in filenames_array:
@@ -421,9 +445,10 @@ def run_nucmer_db_final(temp_cmd):
         mkdir_command = "mkdir %s/%s" % (final_containment_removed_dir, filebase.replace('.fasta', ''))
         filebase_command = "%s/%s/%s_commands.sh" % (final_containment_removed_dir, filebase.replace('.fasta', ''), filebase)
         run_parallel_script = "%s/%s/%s_parallel.pbs" % (final_containment_removed_dir, filebase.replace('.fasta', ''), filebase)
-        print filebase_command
-        print run_parallel_script
-        os.system(mkdir_command)
+        keep_logging('Nucmer containment commands to run in parallel-local mode can be found in: %s' % filebase_command, 'Nucmer containment commands to run in parallel-local mode can be found in: %s' % filebase_command, logger, 'info')
+        keep_logging('Nucmer containment job to run in parallel-local mode can be found in: %s' % run_parallel_script, 'Nucmer containment commands to run in parallel-local mode can be found in: %s' % run_parallel_script, logger, 'info')
+        #os.system(mkdir_command)
+        call("%s" % mkdir_command, logger)
         for file_again in containment_removed_db_filenames:
             file_again_base = os.path.basename(file_again)
             prefix = filebase.replace('.fasta', '') + ":" + file_again_base.replace('.fasta', '')
@@ -447,11 +472,12 @@ def run_nucmer_db_final(temp_cmd):
     return command_array
 
 def run_command(i):
-    os.system(i)
+    #os.system(i)
+    call("%s" % i, logger)
     done = "done"
     return done
 
-def generate_parse_coord_aggregate_jobs(jobrun, filenames_array, temp_cmd):
+def generate_parse_coord_aggregate_jobs(jobrun, filenames_array, temp_cmd, logger):
     f = open(temp_cmd, 'w+')
     command_array = []
     job_directory = args.out + "/" + "temp_jobs"
@@ -465,27 +491,28 @@ def generate_parse_coord_aggregate_jobs(jobrun, filenames_array, temp_cmd):
     #print len(command_array)
     return command_array
 
-def generate_parse_coord_db_aggregate_jobs(jobrun, filenames_array, filenames_db_array, temp_cmd):
-    f = open(temp_cmd, 'w+')
-    command_array = []
-    job_directory = args.out + "/" + "temp_jobs"
-    make_sure_path_exists(job_directory)
-    for folder in filenames_array:
-        cmd = "~/anaconda/bin/python /nfs/esnitkin/bin_group/scripts/Scripts_v2.0/recombination_analysis/run_nucmer_coordinates_db.py -folder %s -out %s -dir %s -prokka_dir %s\n" % (folder, args.out, args.dir, args.prokka_dir)
-        #print cmd
-        command_array.append(cmd)
-        f.write(cmd)
-        #job_name = os.path.basename(folder)
-        #job_print_string = "#PBS -N %s\n#PBS -M apirani@med.umich.edu\n#PBS -m a\n#PBS -V\n#PBS -l nodes=1:ppn=4,pmem=4000mb,walltime=76:00:00\n#PBS -q fluxod\n#PBS -A esnitkin_fluxod\n#PBS -l qos=flux\n\ncd %s\n%s\n" % (job_name, args.dir, cmd)
-        #job_file_name = "%s/%s_run_nucmer_coordinates.pbs" % (job_directory, job_name)
-        #f1=open(job_file_name, 'w+')
-        #f1.write(job_print_string)
-    #f1.close()
-    f.close()
-    #print len(command_array)
-    return command_array
+# Deprecated: Removed before release
+# def generate_parse_coord_db_aggregate_jobs(jobrun, filenames_array, filenames_db_array, temp_cmd, logger):
+#     f = open(temp_cmd, 'w+')
+#     command_array = []
+#     job_directory = args.out + "/" + "temp_jobs"
+#     make_sure_path_exists(job_directory)
+#     for folder in filenames_array:
+#         cmd = "~/anaconda/bin/python /nfs/esnitkin/bin_group/scripts/Scripts_v2.0/recombination_analysis/run_nucmer_coordinates_db.py -folder %s -out %s -dir %s -prokka_dir %s\n" % (folder, args.out, args.dir, args.prokka_dir)
+#         #print cmd
+#         command_array.append(cmd)
+#         f.write(cmd)
+#         #job_name = os.path.basename(folder)
+#         #job_print_string = "#PBS -N %s\n#PBS -M apirani@med.umich.edu\n#PBS -m a\n#PBS -V\n#PBS -l nodes=1:ppn=4,pmem=4000mb,walltime=76:00:00\n#PBS -q fluxod\n#PBS -A esnitkin_fluxod\n#PBS -l qos=flux\n\ncd %s\n%s\n" % (job_name, args.dir, cmd)
+#         #job_file_name = "%s/%s_run_nucmer_coordinates.pbs" % (job_directory, job_name)
+#         #f1=open(job_file_name, 'w+')
+#         #f1.write(job_print_string)
+#     #f1.close()
+#     f.close()
+#     #print len(command_array)
+#     return command_array
 
-def generate_parse_containments_jobs(jobrun, filenames_array, filenames_db_array, temp_cmd):
+def generate_parse_containments_jobs(jobrun, filenames_array, filenames_db_array, temp_cmd, logger):
     f = open(temp_cmd, 'w+')
     command_array = []
     job_directory = dedup_database_dir + "/" + "temp_jobs"
@@ -505,7 +532,7 @@ def generate_parse_containments_jobs(jobrun, filenames_array, filenames_db_array
     #print len(command_array)
     return command_array
 
-def generate_parse_containments_final_jobs(jobrun, filenames_array, filenames_db_array, temp_cmd):
+def generate_parse_containments_final_jobs(jobrun, filenames_array, filenames_db_array, temp_cmd, logger):
     f = open(temp_cmd, 'w+')
     command_array = []
     job_directory = final_containment_removed_dir + "/" + "temp_jobs"
@@ -525,6 +552,8 @@ def generate_parse_containments_final_jobs(jobrun, filenames_array, filenames_db
     #print len(command_array)
     return command_array
 
+#keep_logging('', '', logger, 'info')
+
 #Main Steps: Start of pipeline
 if __name__ == '__main__':
 
@@ -532,6 +561,8 @@ if __name__ == '__main__':
     start_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     start_time_2 = datetime.now().strftime('%Y-%m-%d')
 
+    # Generate logger object for logging subprocesses
+    global logger
     logger = generate_logger(args.out, args.analysis_name, start_time_2)
 
     keep_logging('The Script started at: %s\n' % start_time, 'The Script started at: %s\n' % start_time, logger, 'info')
@@ -545,7 +576,8 @@ if __name__ == '__main__':
     temp_fasta_dir = "/tmp/fasta_file"
     make_sure_path_exists(temp_fasta_dir)
     copy_fasta_tmp_cmd = "cp %s/* %s/" % (args.dir, temp_fasta_dir)
-    os.system(copy_fasta_tmp_cmd)
+    #os.system(copy_fasta_tmp_cmd)
+    call("%s" % copy_fasta_tmp_cmd, logger)
 
     with open(args.filename) as fp:
         for line in fp:
@@ -563,18 +595,23 @@ if __name__ == '__main__':
         else:
             steps_list = args.steps.split(',')
 
+
+        keep_logging('Running pipeline with steps argument: %s\n' % steps_list,
+                     'Running pipeline with steps argument: %s\n' % steps_list, logger,
+                     'info')
+
         if "1" in steps_list:
             # Run nucmer on all the input fasta pseudomolecule assembly fasta file. compare All-vs-All.
             keep_logging('Running Step 1: Run Nucmer on all input fasta files to compare All-vs-All\n', 'Running Step 1: Run Nucmer on all input fasta files to compare All-vs-All\n', logger,
                          'info')
             make_sure_path_exists(args.out)
             temp_cmd = "%s/temp_commands" % args.out
-            command_array_local, command_array_cluster = run_nucmer_parallel(temp_cmd)
+            command_array_local, command_array_cluster = run_nucmer_parallel(temp_cmd, logger)
             if args.jobrun:
                 if args.jobrun == "parallel-local":
-                    create_job(args.jobrun, command_array_local)
+                    create_job(args.jobrun, command_array_local, logger)
                 elif args.jobrun == "cluster":
-                    create_job(args.jobrun, command_array_cluster)
+                    create_job(args.jobrun, command_array_cluster, logger)
 
             keep_logging('End Step 1: Run Nucmer on all input fasta files to compare All-vs-All\n',
                          'End Step 1: Run Nucmer on all input fasta files to compare All-vs-All\n', logger,
@@ -586,14 +623,15 @@ if __name__ == '__main__':
                          'Running Step 2: Parsing Nucmer Coordinate results generated by Nucmer Step 1 and extracting all the aligned regions.', logger,
                          'info')
             temp_cmd_parse_coord = "%s/temp_commands_parse_coord" % args.out
-            command_array = generate_parse_coord_aggregate_jobs(args.jobrun, filenames_array, temp_cmd_parse_coord)
+            command_array = generate_parse_coord_aggregate_jobs(args.jobrun, filenames_array, temp_cmd_parse_coord, logger)
             if args.jobrun:
-                create_job_parse(args.jobrun, command_array)
+                create_job_parse(args.jobrun, command_array, logger)
 
             # Move Aggregate score results. No use of these results. Remove when done. Pending...
             aggregate_results = args.out + "/aggregate_results/"
             make_sure_path_exists(aggregate_results)
-            os.system("mv %s/*.aligned %s/*.score %s" % (args.out, args.out, aggregate_results))
+            #os.system("mv %s/*.aligned %s/*.score %s" % (args.out, args.out, aggregate_results))
+            call("mv %s/*.aligned %s/*.score %s" % (args.out, args.out, aggregate_results), logger)
             keep_logging(
                 'Running: mv %s/*.aligned %s/*.score %s\n' % (args.out, args.out, aggregate_results),
                 'Running: mv %s/*.aligned %s/*.score %s\n' % (args.out, args.out, aggregate_results),
@@ -644,16 +682,18 @@ if __name__ == '__main__':
             # Run dedupe to deduplicate sequences in a preliminary extracted aligned region database.
             dedupe_cmd = "/nfs/esnitkin/bin_group/bbmap/dedupe.sh in=%s/Extracted_aligned_region.fasta out=%s/Extracted_aligned_region_dedup.fasta" % (
             database_directory, database_directory)
-            print "Running: %s" % dedupe_cmd
             keep_logging('Running dedupe command: %s\n' % dedupe_cmd,
                          'Running dedupe command: %s\n' % dedupe_cmd, logger,
                          'debug')
-            os.system(dedupe_cmd)
+            #os.system(dedupe_cmd)
+            call("%s" % dedupe_cmd, logger)
 
             # Run dedupe to remove containment sequences from deduplicated preliminary extracted aligned region database results.
             dedupe_containment_cmd = "/nfs/esnitkin/bin_group/bbmap/dedupe.sh in=%s/Extracted_aligned_region_dedup.fasta out=%s/Extracted_aligned_region_dedup_cluster_99.fasta minidentity=99" % (
             database_directory, database_directory)
-            os.system(dedupe_containment_cmd)
+            #os.system(dedupe_containment_cmd)
+            call("%s" % dedupe_containment_cmd, logger)
+
             keep_logging('Running dedupe containment command: %s\n' % dedupe_containment_cmd,
                          'Running dedupe containment command: %s\n' % dedupe_containment_cmd, logger,
                          'debug')
@@ -671,9 +711,12 @@ if __name__ == '__main__':
                 logger,
                 'debug')
 
-            os.system(get_meta_annotations)
-            os.system("bash %s/grep_meta.sh > %s/Extracted_aligned_region_dedup_cluster_99.tsv" % (
-            database_directory, database_directory))
+            #os.system(get_meta_annotations)
+            #os.system("bash %s/grep_meta.sh > %s/Extracted_aligned_region_dedup_cluster_99.tsv" % (database_directory, database_directory))
+
+            call("%s" % get_meta_annotations, logger)
+
+            call("bash %s/grep_meta.sh > %s/Extracted_aligned_region_dedup_cluster_99.tsv" % (database_directory, database_directory), logger)
 
             dedup_database_dir = database_directory + "/deduped_extracted_aligned_region_database/"
             make_sure_path_exists(dedup_database_dir)
@@ -681,14 +724,14 @@ if __name__ == '__main__':
             get_deduped_extracted_aligned_region_database_files = "for i in `awk -F'\\t' '{print $1}' %s/Extracted_aligned_region_dedup_cluster_99.tsv`; do  echo \"$i\" > %s/$i.txt; done" % (
             database_directory, dedup_database_dir)
 
-            print "Running: %s" % get_deduped_extracted_aligned_region_database_files
             keep_logging(
                 'Extract sequence names from deduplicated and containment removed sequences: %s\n' % get_deduped_extracted_aligned_region_database_files,
                 'Extract sequence names from deduplicated and containment removed sequences:: %s\n' % get_deduped_extracted_aligned_region_database_files,
                 logger,
                 'debug')
 
-            os.system(get_deduped_extracted_aligned_region_database_files)
+            #os.system(get_deduped_extracted_aligned_region_database_files)
+            call("%s" % get_deduped_extracted_aligned_region_database_files, logger)
 
             extract_regions_from_file = "for i in `ls %s/*.txt`; do base=`echo $i | sed 's/.txt//g'`; ~/bin/seqtk/seqtk subseq %s/Extracted_aligned_region_dedup_cluster_99.fasta $i > $base.fasta; done" % (
             dedup_database_dir, database_directory)
@@ -698,7 +741,8 @@ if __name__ == '__main__':
                 'Extract individual sequences from deduplicated and containment removed sequence mfa file: %s\n' % extract_regions_from_file,
                 logger,
                 'info')
-            os.system(extract_regions_from_file)
+            #os.system(extract_regions_from_file)
+            call(extract_regions_from_file, logger)
 
         if "4" in steps_list:
             keep_logging('Running Step 4: Remove containment sequences from the preliminary database fragments. Part one: Run Nucmer all deduped extracted sequences against each other.',
@@ -719,7 +763,8 @@ if __name__ == '__main__':
                 'Save deduped extracted aligned individual fasta filenames: ls *.fasta > %s/Extracted_aligned_region_dedup_cluster_99_fasta_filenames.txt\n' % dedup_database_dir,
                 logger,
                 'info')
-            os.system(get_extracted_aligned_region_dedup_cluster_99_fasta_files)
+            #os.system(get_extracted_aligned_region_dedup_cluster_99_fasta_files)
+            call("%s" % get_extracted_aligned_region_dedup_cluster_99_fasta_files, logger)
 
             # Run Step 1 nucmer method again but with only Extracted_aligned_region_dedup_cluster_99_fasta_filenames
             output_folder = dedup_database_dir
@@ -729,7 +774,8 @@ if __name__ == '__main__':
             temp_fasta_dir_containment = "/tmp/containment_fasta_files"
             make_sure_path_exists(temp_fasta_dir_containment)
             copy_fasta_tmp_cmd = "cp %s/*.fasta %s/" % (dedup_database_dir, temp_fasta_dir_containment)
-            os.system(copy_fasta_tmp_cmd)
+            #os.system(copy_fasta_tmp_cmd)
+            call("%s" % copy_fasta_tmp_cmd, logger)
 
 
             filenames_containments_array = []
@@ -743,9 +789,9 @@ if __name__ == '__main__':
             temp_cmd = "%s/temp_commands" % output_folder
 
             # Run Nucmer All-vs-All for deduped extracted alignment fasta files against each other.
-            command_array = run_nucmer_parallel_containment(temp_cmd)
+            command_array = run_nucmer_parallel_containment(temp_cmd, logger)
             if args.jobrun:
-                create_job_containments(args.jobrun, command_array)
+                create_job_containments(args.jobrun, command_array, logger)
 
         if "5" in steps_list:
             keep_logging(
@@ -776,7 +822,8 @@ if __name__ == '__main__':
             temp_fasta_dir_containment = "/tmp/containment_fasta_files"
             make_sure_path_exists(temp_fasta_dir_containment)
             copy_fasta_tmp_cmd = "cp %s/*.fasta %s/" % (dedup_database_dir, temp_fasta_dir_containment)
-            os.system(copy_fasta_tmp_cmd)
+            #os.system(copy_fasta_tmp_cmd)
+            call("%s" % copy_fasta_tmp_cmd, logger)
 
             filenames_containments_array = []
             with open("%s/Extracted_aligned_region_dedup_cluster_99_fasta_filenames.txt" % dedup_database_dir) as fp:
@@ -788,21 +835,32 @@ if __name__ == '__main__':
             fp.close()
 
             # Parse Nucmer Coordinates file for extracted aligned regions
-            command_array = generate_parse_containments_jobs(args.jobrun, filenames_containments_array, filenames_containments_array, temp_cmd)
+            command_array = generate_parse_containments_jobs(args.jobrun, filenames_containments_array, filenames_containments_array, temp_cmd, logger)
             if args.jobrun:
-                create_job_parse(args.jobrun, command_array)
+                create_job_parse(args.jobrun, command_array, logger)
 
             # Read in the Matrix; find alignments with containments
-            os.system("cd %s" % dedup_database_dir)
-            os.system("ls *.fasta | sed 's/.fasta//g' > %s/rownames" % dedup_database_dir)
+            # os.system("cd %s" % dedup_database_dir)
+            # os.system("ls *.fasta | sed 's/.fasta//g' > %s/rownames" % dedup_database_dir)
+            # newline = "\n"
+            # os.system(
+            #     "ls *.fasta | sed 's/.fasta//g' | tr '\\n' '\\t' | sed 's/^/\\t/g' | sed 's/$/\\n/g' > %s/header" % (
+            #         dedup_database_dir))
+            # os.system("paste %s/rownames %s/*.score > %s/containment_matrix_temp.csv" % (
+            # dedup_database_dir, dedup_database_dir, dedup_database_dir))
+            # os.system("cat %s/header %s/containment_matrix_temp.csv > %s/containment_matrix.csv" % (
+            # dedup_database_dir, dedup_database_dir, dedup_database_dir))
+
+            call("cd %s" % dedup_database_dir, logger)
+            call("ls *.fasta | sed 's/.fasta//g' > %s/rownames" % dedup_database_dir, logger)
             newline = "\n"
-            os.system(
+            call(
                 "ls *.fasta | sed 's/.fasta//g' | tr '\\n' '\\t' | sed 's/^/\\t/g' | sed 's/$/\\n/g' > %s/header" % (
-                    dedup_database_dir))
-            os.system("paste %s/rownames %s/*.score > %s/containment_matrix_temp.csv" % (
-            dedup_database_dir, dedup_database_dir, dedup_database_dir))
-            os.system("cat %s/header %s/containment_matrix_temp.csv > %s/containment_matrix.csv" % (
-            dedup_database_dir, dedup_database_dir, dedup_database_dir))
+                    dedup_database_dir), logger)
+            call("paste %s/rownames %s/*.score > %s/containment_matrix_temp.csv" % (
+                dedup_database_dir, dedup_database_dir, dedup_database_dir), logger)
+            call("cat %s/header %s/containment_matrix_temp.csv > %s/containment_matrix.csv" % (
+                dedup_database_dir, dedup_database_dir, dedup_database_dir), logger)
 
             keep_logging(
                 'Reading containment matrix to determine fragments contained in another larger fragment: %s/containment_matrix.csv\n' % dedup_database_dir,
@@ -909,7 +967,8 @@ if __name__ == '__main__':
 
             temp_fasta_dir_containment_removed = "/tmp/containment_removed_fasta_files"
             make_sure_path_exists(temp_fasta_dir_containment_removed)
-            os.system("rm %s/*" % temp_fasta_dir_containment_removed)
+            # os.system("rm %s/*" % temp_fasta_dir_containment_removed)
+            call("rm %s/*" % temp_fasta_dir_containment_removed, logger)
 
             sequence = "NNNNNCATTCCATTCATTAATTAATTAATGAATGAATGNNNNN"
 
@@ -921,8 +980,8 @@ if __name__ == '__main__':
                     line = line.strip()
                     for rec in SeqIO.parse("%s/%s" % (dedup_database_dir, line), "fasta"):
                         if "NNNNNCATTCCATTCATTAATTAATTAATGAATGAATGNNNNN" in rec.seq:
-                            print "Linker sequence found in: %s" % line
-                            print "Number of linker sequence found: %s" % rec.seq.count(sequence)
+                            keep_logging('Linker sequence found in: %s' % line, 'Linker sequence found in: %s' % line, logger, 'info')
+                            keep_logging('Number of linker sequence found: %s' % rec.seq.count(sequence), 'Number of linker sequence found: %s' % rec.seq.count(sequence), logger, 'info')
                             count = 1
                             split_record = rec.seq.split('NNNNNCATTCCATTCATTAATTAATTAATGAATGAATGNNNNN')
                             for i in split_record:
@@ -942,7 +1001,8 @@ if __name__ == '__main__':
                         else:
                             copy_fasta_tmp_cmd = "cp %s/%s %s/" % (
                             dedup_database_dir, line, temp_fasta_dir_containment_removed)
-                            os.system(copy_fasta_tmp_cmd)
+                            #os.system(copy_fasta_tmp_cmd)
+                            call(copy_fasta_tmp_cmd, logger)
                             line = temp_fasta_dir_containment_removed + "/" + line
                             containment_removed_db_filenames.append(line)
             fpp.close()
@@ -960,21 +1020,22 @@ if __name__ == '__main__':
                 logger,
                 'info')
 
-            # # Run Nucmer original fasta vs final fragments database
-            # temp_cmd = "%s/temp_commands" % final_containment_removed_dir
-            # command_array = run_nucmer_db_final(temp_cmd)
-            # if args.jobrun:
-            #     create_job_containments_final(args.jobrun, command_array)
-            #
-            # temp_cmd = "%s/temp_commands_parse_containments.sh" % final_containment_removed_dir
-            #
-            # command_array = generate_parse_containments_final_jobs(args.jobrun, filenames_array, containment_removed_db_filenames, temp_cmd)
-            # if args.jobrun:
-            #     create_job_parse(args.jobrun, command_array)
+            # Run Nucmer original fasta vs final fragments database
+            temp_cmd = "%s/temp_commands" % final_containment_removed_dir
+            command_array = run_nucmer_db_final(temp_cmd, logger)
+            if args.jobrun:
+                create_job_containments_final(args.jobrun, command_array, logger)
+
+            temp_cmd = "%s/temp_commands_parse_containments.sh" % final_containment_removed_dir
+
+            command_array = generate_parse_containments_final_jobs(args.jobrun, filenames_array, containment_removed_db_filenames, temp_cmd, logger)
+            if args.jobrun:
+                create_job_parse(args.jobrun, command_array, logger)
 
             # Read in the Matrix; find alignments with containments
             os.chdir(temp_fasta_dir_containment_removed)
-            os.system("ls *.fasta | sed 's/.fasta//g' > %s/rownames" % final_containment_removed_dir)
+            #os.system("ls *.fasta | sed 's/.fasta//g' > %s/rownames" % final_containment_removed_dir)
+            call("ls *.fasta | sed 's/.fasta//g' > %s/rownames" % final_containment_removed_dir, logger)
             newline = "\n"
 
             # Prepare matrix from alignment score results.
@@ -986,11 +1047,15 @@ if __name__ == '__main__':
             header_open.write(header + '\n')
             header_open.close()
 
-            os.system("paste %s/rownames %s/*.score > %s/Final_HGT_score_matrix_temp.csv" % (
-                final_containment_removed_dir, final_containment_removed_dir, final_containment_removed_dir))
-            os.system("cat %s/header %s/Final_HGT_score_matrix_temp.csv > %s/Final_HGT_score_matrix.csv" % (
-                final_containment_removed_dir, final_containment_removed_dir, final_containment_removed_dir))
+            # os.system("paste %s/rownames %s/*.score > %s/Final_HGT_score_matrix_temp.csv" % (
+            #     final_containment_removed_dir, final_containment_removed_dir, final_containment_removed_dir))
+            # os.system("cat %s/header %s/Final_HGT_score_matrix_temp.csv > %s/Final_HGT_score_matrix.csv" % (
+            #     final_containment_removed_dir, final_containment_removed_dir, final_containment_removed_dir))
 
+            call("paste %s/rownames %s/*.score > %s/Final_HGT_score_matrix_temp.csv" % (
+                final_containment_removed_dir, final_containment_removed_dir, final_containment_removed_dir), logger)
+            call("cat %s/header %s/Final_HGT_score_matrix_temp.csv > %s/Final_HGT_score_matrix.csv" % (
+                final_containment_removed_dir, final_containment_removed_dir, final_containment_removed_dir), logger)
 
             keep_logging(
                 'Generating annotation metadata file from %s/Extracted_aligned_region_dedup_cluster_99.tsv.' % final_containment_removed_dir,
@@ -1018,7 +1083,9 @@ if __name__ == '__main__':
             for frags in containment_removed_db_filenames:
                 grep_meta_file.write("grep -w '%s' %s/Extracted_aligned_region_dedup_cluster_99.tsv\n" % (os.path.basename(frags.replace(".fasta", "")), database_directory))
 
-            os.system("bash %s/grep_meta.sh > %s/Final_HGT_score_matrix_meta.tsv" % (final_containment_removed_dir, final_containment_removed_dir))
+            #os.system("bash %s/grep_meta.sh > %s/Final_HGT_score_matrix_meta.tsv" % (final_containment_removed_dir, final_containment_removed_dir))
+            call("bash %s/grep_meta.sh > %s/Final_HGT_score_matrix_meta.tsv" % (
+            final_containment_removed_dir, final_containment_removed_dir), logger)
             keep_logging(
                 'Running: bash %s/grep_meta.sh > %s/Final_HGT_score_matrix_meta.tsv' % (final_containment_removed_dir, final_containment_removed_dir),
                 'Running: bash %s/grep_meta.sh > %s/Final_HGT_score_matrix_meta.tsv' % (final_containment_removed_dir, final_containment_removed_dir),
@@ -1044,7 +1111,8 @@ if __name__ == '__main__':
             # GENERATE FASTA FILENAMES ARRAY
             temp_fasta_dir_containment_removed = "/tmp/containment_removed_fasta_files"
             make_sure_path_exists(temp_fasta_dir_containment_removed)
-            os.system("rm %s/*" % temp_fasta_dir_containment_removed)
+            #os.system("rm %s/*" % temp_fasta_dir_containment_removed)
+            call("rm %s/*" % temp_fasta_dir_containment_removed, logger)
 
 
             sequence = "NNNNNCATTCCATTCATTAATTAATTAATGAATGAATGNNNNN"
@@ -1058,8 +1126,8 @@ if __name__ == '__main__':
                     line = line.strip()
                     for rec in SeqIO.parse("%s/%s" % (dedup_database_dir, line), "fasta"):
                         if "NNNNNCATTCCATTCATTAATTAATTAATGAATGAATGNNNNN" in rec.seq:
-                            print "Linker sequence found in: %s" % line
-                            print "Number of linker sequence found: %s" % rec.seq.count(sequence)
+                            keep_logging('Linker sequence found in: %s' % line, 'Linker sequence found in: %s' % line, logger, 'info')
+                            keep_logging('Number of linker sequence found: %s' % rec.seq.count(sequence), 'Number of linker sequence found: %s' % rec.seq.count(sequence), logger, 'info')
                             count = 1
                             split_record = rec.seq.split('NNNNNCATTCCATTCATTAATTAATTAATGAATGAATGNNNNN')
                             for i in split_record:

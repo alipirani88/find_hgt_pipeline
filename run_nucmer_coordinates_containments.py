@@ -23,6 +23,7 @@ def parse_coord_aggregate(folder, folder_dir):
     comparison_file_anno = args.out + (os.path.basename(folder)) + "_anno.score"
     f_out_anno_score = open(comparison_file_anno, 'w+')
     for lines in list_of_coords_files.splitlines():
+        print lines
         file_prefix = lines.replace('.coords', '')
         aligned_bases = 0
         anno_aligned_bases = 0
@@ -43,7 +44,8 @@ def parse_coord_aggregate(folder, folder_dir):
                 i = i.split('\t')
                 gaps = ""
                 line_name = os.path.basename(lines)
-                if float(i[6]) >= 99.00 and int(i[4]) > 2000:
+                # changed to 95. Hard coded
+                if float(i[6]) >= 95.00 and int(i[4]) > 2000:
                     if float(i[4]) == float(i[5]):
                         gaps = "No gaps"
                         anno_aligned_bases = anno_aligned_bases + int(i[4])

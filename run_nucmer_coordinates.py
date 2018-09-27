@@ -74,6 +74,7 @@ def parse_coord_aggregate(folder, folder_dir):
                 i = i.split('\t')
                 gaps = ""
                 line_name = os.path.basename(lines)
+                # Changed August 2018
                 if float(i[6]) >= 95.00 and int(i[4]) > 2000:
                     if float(i[4]) == float(i[5]):
                         gaps = "No gaps"
@@ -261,6 +262,7 @@ def parse_coord_aggregate_all(folder, folder_dir):
 
     #Get bedfile for this anno folder
     anno_folder = os.path.basename((folder.replace('_l500_contigs_final_ordered.fasta', '')).replace('_final_ordered.fasta',''))
+    anno_folder = anno_folder.replace('_final_ordered', '')
     list_bed_cmd = "ls %s/%s*/*.bed" % (args.prokka_dir, anno_folder)
     bed_file = (subprocess.check_output(list_bed_cmd, shell=True)).strip()
     #print bed_file
